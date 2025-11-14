@@ -1,0 +1,29 @@
+TURYN SEQUENCE THEORY SUMMARY
+
+1. DEFINITION
+Turyn sequences are quadruples (A,B,C,D) of binary (+/-1) sequences satisfying:
+  TA(s) + TB(s) + 2*TC(s) + 2*TD(s) = 0  for all shifts s != 0
+
+2. KEY CONSTRAINTS
+- Canonical form: First element of each sequence = +1
+- Autocorrelation cancellation across weighted sequences
+- C and D have 2x weight in the constraint equation
+
+3. FORBIDDEN PATTERNS (from complementary/Golay theory)
+- Long runs of +1 or -1 cause autocorrelation spikes
+- Identical early runs across sequences create violations
+- All sequences having +1 at same position (except pos 0) often fails
+
+4. EMPIRICAL RULES FOR N=5 AND N=7
+- Balanced transitions (+1->-1) should appear early
+- For N=7: C and D often show alternating patterns
+- Avoid over-specification (leave flexibility for SAT solver)
+
+5. SAT ENCODING
+- CNF clauses enforce autocorrelation = 0 for each shift
+- Prefix assignments become assumptions in SAT solver
+- UNSAT cores identify minimal conflicting assignments
+
+6. REFERENCES
+- Theory extracted from: Turyn_Theory_Pack_Plain.pdf
+- Implementations in: sequence_generator.py, cnf_automator.py

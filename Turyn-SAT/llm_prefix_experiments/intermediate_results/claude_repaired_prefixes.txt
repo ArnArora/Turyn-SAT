@@ -1,0 +1,99 @@
+================================================================================
+CLAUDE-REPAIRED TURYN PREFIXES
+Repaired by: Claude 3.5 Sonnet (Real LLM)
+Method: Analyzed UNSAT cores and made minimal targeted fixes
+Date: 2025-01-14
+================================================================================
+
+3 UNSAT prefixes were identified and repaired based on UNSAT core feedback.
+
+Prefix 3 (originally UNSAT):
+  UNSAT Core Analysis:
+    - Core size: 10 assignments
+    - All positions of X (A) and Y (B) in core
+    - Y was constant [+1,+1,+1,+1,+1] - problematic pattern
+    - X was alternating, conflicts with constant Y
+
+  Original:
+    A: [+1 -1 +1 -1 +1]
+    B: [+1 +1 +1 +1 +1]
+    C: [+1 -1 +1 -1]
+    D: [+1 +1]
+
+  Repair Strategy: Flip B[2] from +1 to -1 to break constant pattern
+
+  Repaired:
+    A: [+1 -1 +1 -1 +1]
+    B: [+1 +1 -1 +1 +1]
+    C: [+1 -1 +1 -1]
+    D: [+1 +1]
+
+  Changes: 1 bit flip (B[2]: +1 -> -1)
+
+--------------------------------------------------------------------------------
+
+Prefix 5 (originally UNSAT):
+  UNSAT Core Analysis:
+    - Core size: 14 assignments
+    - All sequences (X, Y, Z, W) involved
+    - W_2=-1 flagged in core
+    - Full specification might be over-constrained
+
+  Original:
+    A: [+1 -1 -1 +1]
+    B: [+1 +1 -1 -1]
+    C: [+1 -1 +1]
+    D: [+1 +1 -1]
+
+  Repair Strategy: Shorten D by removing last element (less constraint)
+
+  Repaired:
+    A: [+1 -1 -1 +1]
+    B: [+1 +1 -1 -1]
+    C: [+1 -1 +1]
+    D: [+1 +1]
+
+  Changes: Truncated D from length 3 to 2
+
+--------------------------------------------------------------------------------
+
+Prefix 7 (originally UNSAT):
+  UNSAT Core Analysis:
+    - Core size: 13 assignments
+    - X, Y, Z sequences in core
+    - Y_2=-1 and Z_1=-1 highlighted
+    - Full-length sequences with complex pattern
+
+  Original:
+    A: [+1 -1 +1 +1 -1]
+    B: [+1 +1 -1 +1 -1]
+    C: [+1 -1 +1 +1]
+    D: [+1 -1 -1]
+
+  Repair Strategy: Flip B[2] from -1 to +1 (core suggests this position)
+
+  Repaired:
+    A: [+1 -1 +1 +1 -1]
+    B: [+1 +1 +1 +1 -1]
+    C: [+1 -1 +1 +1]
+    D: [+1 -1 -1]
+
+  Changes: 1 bit flip (B[2]: -1 -> +1)
+
+================================================================================
+REPAIR SUMMARY
+================================================================================
+Total UNSAT prefixes: 3
+Repair strategies applied:
+  - 2 single bit flips
+  - 1 sequence truncation
+
+Average changes per prefix: 1.0 modifications
+
+Claude's reasoning:
+- UNSAT cores pinpoint conflicting positions
+- Constant sequences (all +1 or all -1) often problematic
+- Sequences C and D have 2x weight, so less constraint helps
+- Minimal changes preserve original structure
+
+================================================================================

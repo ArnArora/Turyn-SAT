@@ -1,0 +1,240 @@
+================================================================================
+CROSS-METHOD COMPARISON SUMMARY
+Turyn Sequence Prefix Generation Methods
+================================================================================
+
+1. SAT RATES
+--------------------------------------------------------------------------------
+Method               Total      SAT        UNSAT      SAT Rate  
+--------------------------------------------------------------------------------
+baseline             89         89         0          100.0%
+llm_raw              10         6          4          60.0%
+llm_corrected        4          4          0          100.0%
+paper_raw            10         9          1          90.0%
+paper_corrected      1          0          1          0.0%
+
+
+2. EDIT DISTANCE TO NEAREST VALID PREFIX
+--------------------------------------------------------------------------------
+Method               Mean       Median     Min        Max       
+--------------------------------------------------------------------------------
+llm_raw              6.00       6.50       1          9         
+llm_corrected        6.75       7.00       3          10        
+paper_raw            3.40       3.50       1          6         
+paper_corrected      3.00       3.00       3          3         
+
+
+3. STRUCTURAL PATTERN ANALYSIS
+--------------------------------------------------------------------------------
+
+BASELINE:
+  Total Prefixes: 89
+  Canonical Violations: 0
+  Forbidden Patterns: 18
+  Average Transitions per Sequence:
+    A: 1.17
+    B: 1.05
+    C: 1.45
+    D: 1.34
+  Average Run Length:
+    A: 1.83
+    B: 1.83
+    C: 1.30
+    D: 1.27
+  Alternating Pattern Frequency:
+    A: 9.0%
+    B: 9.0%
+    C: 33.7%
+    D: 34.8%
+
+LLM_RAW:
+  Total Prefixes: 10
+  Canonical Violations: 0
+  Forbidden Patterns: 7
+  Average Transitions per Sequence:
+    A: 1.40
+    B: 1.00
+    C: 0.83
+    D: 1.57
+  Average Run Length:
+    A: 1.77
+    B: 1.71
+    C: 2.42
+    D: 2.01
+  Alternating Pattern Frequency:
+    A: 10.0%
+    B: 20.0%
+    C: 20.0%
+    D: 10.0%
+
+LLM_CORRECTED:
+  Total Prefixes: 4
+  Canonical Violations: 0
+  Forbidden Patterns: 2
+  Average Transitions per Sequence:
+    A: 1.25
+    B: 1.33
+    C: 1.50
+    D: 1.75
+  Average Run Length:
+    A: 1.69
+    B: 1.44
+    C: 1.62
+    D: 1.75
+  Alternating Pattern Frequency:
+    A: 0.0%
+    B: 25.0%
+    C: 50.0%
+    D: 0.0%
+
+PAPER_RAW:
+  Total Prefixes: 10
+  Canonical Violations: 0
+  Forbidden Patterns: 0
+  Average Transitions per Sequence:
+    A: 1.30
+    B: 1.50
+    C: 1.00
+    D: 0.70
+  Average Run Length:
+    A: 1.35
+    B: 1.27
+    C: 1.30
+    D: 1.50
+  Alternating Pattern Frequency:
+    A: 20.0%
+    B: 40.0%
+    C: 50.0%
+    D: 20.0%
+
+PAPER_CORRECTED:
+  Total Prefixes: 1
+  Canonical Violations: 0
+  Forbidden Patterns: 1
+  Average Transitions per Sequence:
+    A: 3.00
+    B: 3.00
+    C: 2.00
+    D: 2.00
+  Average Run Length:
+    A: 1.25
+    B: 1.25
+    C: 1.67
+    D: 1.67
+  Alternating Pattern Frequency:
+    A: 0.0%
+    B: 0.0%
+    C: 0.0%
+    D: 0.0%
+
+
+4. UNSAT CORE SEVERITY
+--------------------------------------------------------------------------------
+
+LLM_RAW:
+  Total UNSAT: 4
+  Average Core Size: 13.0
+  Sequence Frequency in Cores:
+    W: 17
+    Z: 15
+    Y: 8
+    X: 12
+  Position Conflicts:
+    Position 0: 15
+    Position 1: 12
+    Position 2: 12
+    Position 3: 8
+    Position 4: 5
+
+  Position Conflict Heatmap (llm_raw)
+----------------------------------------
+Pos 0: ############################## (15)
+Pos 1: ######################## (12)
+Pos 2: ######################## (12)
+Pos 3: ################ (8)
+Pos 4: ########## (5)
+
+LLM_CORRECTED:
+  Total UNSAT: 0
+  Average Core Size: 0.0
+  Sequence Frequency in Cores:
+  Position Conflicts:
+
+No conflicts
+
+PAPER_RAW:
+  Total UNSAT: 1
+  Average Core Size: 14.0
+  Sequence Frequency in Cores:
+    Z: 4
+    Y: 5
+    X: 5
+  Position Conflicts:
+    Position 0: 3
+    Position 1: 3
+    Position 2: 3
+    Position 3: 3
+    Position 4: 2
+
+  Position Conflict Heatmap (paper_raw)
+----------------------------------------
+Pos 0: ############################## (3)
+Pos 1: ############################## (3)
+Pos 2: ############################## (3)
+Pos 3: ############################## (3)
+Pos 4: #################### (2)
+
+PAPER_CORRECTED:
+  Total UNSAT: 1
+  Average Core Size: 14.0
+  Sequence Frequency in Cores:
+    Z: 4
+    Y: 5
+    X: 5
+  Position Conflicts:
+    Position 0: 3
+    Position 1: 3
+    Position 2: 3
+    Position 3: 3
+    Position 4: 2
+
+  Position Conflict Heatmap (paper_corrected)
+----------------------------------------
+Pos 0: ############################## (3)
+Pos 1: ############################## (3)
+Pos 2: ############################## (3)
+Pos 3: ############################## (3)
+Pos 4: #################### (2)
+
+
+5. IMPROVEMENT MEASUREMENTS (Raw -> Corrected)
+--------------------------------------------------------------------------------
+
+LLM:
+  Raw SAT Rate: 60.0%
+  Corrected SAT Rate: 100.0%
+  SAT Improvement: +40.0%
+  Average Flips per Correction: 1.50
+  Correction Success Rate: 100.0%
+
+PAPER:
+  Raw SAT Rate: 90.0%
+  Corrected SAT Rate: 0.0%
+  SAT Improvement: -90.0%
+  Average Flips per Correction: 0.00
+  Correction Success Rate: 0.0%
+
+
+================================================================================
+KEY FINDINGS
+================================================================================
+
+1. Best SAT Rate: baseline (100.0%)
+
+2. Closest to Valid Prefixes: paper_corrected (mean distance: 3.00)
+
+3. Best Improvement: llm (+40.0% SAT rate increase)
+
+================================================================================
+END OF SUMMARY
+================================================================================
