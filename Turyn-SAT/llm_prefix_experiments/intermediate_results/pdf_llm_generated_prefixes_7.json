@@ -1,0 +1,357 @@
+{
+  "method": "PDF-to-LLM",
+  "llm": "Claude 3.5 Sonnet",
+  "n": 7,
+  "total_generated": 10,
+  "prefixes": [
+    {
+      "id": 1,
+      "prefix": [
+        [
+          1,
+          -1
+        ],
+        [
+          1,
+          -1
+        ],
+        [
+          1,
+          -1,
+          1,
+          -1,
+          1,
+          -1,
+          1
+        ],
+        [
+          1,
+          -1,
+          1,
+          -1,
+          1,
+          -1,
+          1
+        ]
+      ],
+      "theory_basis": "Section 11: For N=7, C and D show alternating patterns",
+      "reasoning": "Perfect alternating C,D patterns as specified for N=7, minimal A,B"
+    },
+    {
+      "id": 2,
+      "prefix": [
+        [
+          1,
+          1,
+          -1
+        ],
+        [
+          1,
+          -1,
+          1
+        ],
+        [
+          1,
+          -1,
+          1,
+          -1,
+          1,
+          -1
+        ],
+        [
+          1,
+          -1,
+          1,
+          1,
+          -1,
+          1
+        ]
+      ],
+      "theory_basis": "Section 11: Near-alternating patterns in C,D for N=7",
+      "reasoning": "C fully alternating, D near-alternating with one variation"
+    },
+    {
+      "id": 3,
+      "prefix": [
+        [
+          1,
+          1,
+          -1,
+          -1,
+          1,
+          1
+        ],
+        [
+          1,
+          -1,
+          1,
+          1,
+          -1,
+          -1
+        ],
+        [
+          1,
+          -1,
+          1,
+          -1
+        ],
+        [
+          1,
+          -1,
+          1,
+          -1
+        ]
+      ],
+      "theory_basis": "Section 9: Golay complementary + Section 11: N=7 alternating C,D",
+      "reasoning": "Combine Golay-pair structure in A,B with N=7 alternating rule for C,D"
+    },
+    {
+      "id": 4,
+      "prefix": [
+        [
+          1,
+          -1
+        ],
+        [
+          1,
+          1
+        ],
+        [
+          1,
+          -1,
+          1,
+          -1,
+          1,
+          -1,
+          1
+        ],
+        [
+          1,
+          1,
+          -1,
+          1,
+          -1,
+          1,
+          -1
+        ]
+      ],
+      "theory_basis": "Section 3: 2x weight for C,D + Section 11: N=7 alternating",
+      "reasoning": "Full alternating patterns in C,D with 2x weight, sparse A,B for flexibility"
+    },
+    {
+      "id": 5,
+      "prefix": [
+        [
+          1,
+          -1,
+          1,
+          -1,
+          1,
+          -1,
+          1
+        ],
+        [
+          1,
+          1,
+          -1,
+          1,
+          -1,
+          1,
+          -1
+        ],
+        [
+          1,
+          -1,
+          1,
+          -1,
+          1,
+          -1
+        ],
+        [
+          1,
+          -1,
+          1,
+          1,
+          -1,
+          1
+        ]
+      ],
+      "theory_basis": "Section 9: Balance +1/-1; Section 11: alternating base in C",
+      "reasoning": "Full length balanced sequences with alternating base patterns"
+    },
+    {
+      "id": 6,
+      "prefix": [
+        [
+          1,
+          1,
+          1,
+          -1,
+          -1,
+          -1
+        ],
+        [
+          1,
+          -1,
+          -1,
+          1,
+          1,
+          1
+        ],
+        [
+          1,
+          -1,
+          1,
+          -1,
+          1
+        ],
+        [
+          1,
+          -1,
+          1,
+          -1,
+          1
+        ]
+      ],
+      "theory_basis": "Section 9: Complementary structures + Section 11: N=7 alternating",
+      "reasoning": "A,B have inverse run patterns to cancel, C,D alternating per N=7 rule"
+    },
+    {
+      "id": 7,
+      "prefix": [
+        [
+          1,
+          -1,
+          1
+        ],
+        [
+          1,
+          1,
+          -1
+        ],
+        [
+          1,
+          -1,
+          1,
+          -1,
+          1,
+          -1,
+          1
+        ],
+        [
+          1,
+          -1,
+          1,
+          -1,
+          1,
+          -1
+        ]
+      ],
+      "theory_basis": "Section 11: N=7 alternating C,D; Section 6: varied lengths reduce violations",
+      "reasoning": "Short A,B reduce constraints, long alternating C,D satisfy N=7 rule"
+    },
+    {
+      "id": 8,
+      "prefix": [
+        [
+          1
+        ],
+        [
+          1,
+          -1
+        ],
+        [
+          1,
+          -1,
+          1,
+          -1,
+          1,
+          -1,
+          1
+        ],
+        [
+          1,
+          -1,
+          1,
+          -1,
+          1,
+          -1,
+          1
+        ]
+      ],
+      "theory_basis": "Section 10: Correctable margins + Section 11: N=7 alternating",
+      "reasoning": "Sparse A,B for maximum flexibility, perfect alternating C,D per N=7"
+    },
+    {
+      "id": 9,
+      "prefix": [
+        [
+          1,
+          -1,
+          1,
+          1
+        ],
+        [
+          1,
+          1,
+          -1,
+          -1
+        ],
+        [
+          1,
+          -1,
+          1,
+          -1,
+          1,
+          -1
+        ],
+        [
+          1,
+          -1,
+          1,
+          1,
+          -1,
+          1
+        ]
+      ],
+      "theory_basis": "Section 7 & 11: Avoid simultaneous +1 + N=7 alternating base",
+      "reasoning": "No position has all +1, C has near-alternating for N=7"
+    },
+    {
+      "id": 10,
+      "prefix": [
+        [
+          1,
+          1,
+          -1,
+          1,
+          -1
+        ],
+        [
+          1,
+          -1,
+          1,
+          -1,
+          1
+        ],
+        [
+          1,
+          -1,
+          1,
+          -1
+        ],
+        [
+          1,
+          -1,
+          1,
+          -1,
+          1,
+          -1,
+          1
+        ]
+      ],
+      "theory_basis": "Section 11: Balanced transitions early + N=7 alternating D",
+      "reasoning": "All sequences have early transitions, D fully alternating per N=7 rule"
+    }
+  ]
+}

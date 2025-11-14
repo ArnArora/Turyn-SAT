@@ -1,0 +1,274 @@
+{
+  "method": "PDF-to-LLM",
+  "llm": "Claude 3.5 Sonnet",
+  "n": 5,
+  "total_generated": 10,
+  "novel_count": 10,
+  "prefixes": [
+    {
+      "id": 1,
+      "prefix": [
+        [
+          1,
+          -1
+        ],
+        [
+          1,
+          -1
+        ],
+        [
+          1,
+          -1
+        ],
+        [
+          1,
+          -1
+        ]
+      ],
+      "theory_basis": "Section 11: Balanced transitions should appear early",
+      "reasoning": "Immediate -1 after canonical +1 in all sequences minimizes autocorrelation buildup"
+    },
+    {
+      "id": 2,
+      "prefix": [
+        [
+          1
+        ],
+        [
+          1,
+          -1
+        ],
+        [
+          1,
+          -1,
+          1,
+          -1
+        ],
+        [
+          1,
+          -1,
+          1,
+          -1
+        ]
+      ],
+      "theory_basis": "Section 3: C,D have 2x autocorrelation weight; Section 11: alternating patterns",
+      "reasoning": "C and D alternating patterns with 2x weight dominate cancellation, A sparse for flexibility"
+    },
+    {
+      "id": 3,
+      "prefix": [
+        [
+          1,
+          1,
+          -1,
+          -1,
+          1
+        ],
+        [
+          1,
+          -1,
+          1,
+          1,
+          -1
+        ],
+        [
+          1,
+          -1
+        ],
+        [
+          1,
+          -1
+        ]
+      ],
+      "theory_basis": "Section 9: Golay pair theory - complementary structures",
+      "reasoning": "A and B have opposing patterns to cancel autocorrelations, C,D simple alternating"
+    },
+    {
+      "id": 4,
+      "prefix": [
+        [
+          1,
+          -1,
+          1
+        ],
+        [
+          1,
+          1,
+          -1
+        ],
+        [
+          1,
+          -1
+        ],
+        [
+          1
+        ]
+      ],
+      "theory_basis": "Section 7 & 11: Avoid identical triple (+1,+1,+1) across A,B,C",
+      "reasoning": "Position 1 has -1 in A to prevent all-positive forbidden pattern"
+    },
+    {
+      "id": 5,
+      "prefix": [
+        [
+          1
+        ],
+        [
+          1
+        ],
+        [
+          1,
+          -1,
+          1
+        ],
+        [
+          1,
+          1,
+          -1
+        ]
+      ],
+      "theory_basis": "Section 10: Ensure marginal autocorrelation contributions remain correctable",
+      "reasoning": "Minimal A,B keeps flexibility, C,D specified to guide but remain correctable"
+    },
+    {
+      "id": 6,
+      "prefix": [
+        [
+          1,
+          1,
+          -1,
+          1
+        ],
+        [
+          1,
+          -1,
+          1,
+          -1
+        ],
+        [
+          1,
+          -1
+        ],
+        [
+          1
+        ]
+      ],
+      "theory_basis": "Section 7: Avoid long runs; Section 9: Balance +1/-1 for cancellation",
+      "reasoning": "A and B diverge early with opposite transitions to cancel autocorrelation spikes"
+    },
+    {
+      "id": 7,
+      "prefix": [
+        [
+          1,
+          -1,
+          1,
+          -1,
+          1
+        ],
+        [
+          1,
+          1,
+          -1,
+          1,
+          -1
+        ],
+        [
+          1,
+          -1,
+          1,
+          -1
+        ],
+        [
+          1,
+          1,
+          -1,
+          1
+        ]
+      ],
+      "theory_basis": "Section 9: Sequences must balance +1 and -1 for autocorrelation cancellation",
+      "reasoning": "All sequences fully specified with balanced +1/-1 counts, testing full constraint satisfaction"
+    },
+    {
+      "id": 8,
+      "prefix": [
+        [
+          1,
+          -1
+        ],
+        [
+          1,
+          1
+        ],
+        [
+          1,
+          -1,
+          1,
+          -1,
+          1
+        ],
+        [
+          1,
+          1,
+          -1,
+          -1,
+          1
+        ]
+      ],
+      "theory_basis": "Section 3 & 10: C,D have 2x weight, use them strategically",
+      "reasoning": "Heavy specification in C,D leverages 2x autocorrelation weight, sparse A,B"
+    },
+    {
+      "id": 9,
+      "prefix": [
+        [
+          1,
+          -1,
+          -1,
+          1
+        ],
+        [
+          1,
+          1,
+          -1
+        ],
+        [
+          1,
+          -1
+        ],
+        [
+          1
+        ]
+      ],
+      "theory_basis": "Section 6: Partial autocorrelation over overlapping positions",
+      "reasoning": "Different lengths reduce shift-overlap constraint interactions"
+    },
+    {
+      "id": 10,
+      "prefix": [
+        [
+          1,
+          1,
+          -1
+        ],
+        [
+          1,
+          -1,
+          1
+        ],
+        [
+          1,
+          -1,
+          1
+        ],
+        [
+          1,
+          -1,
+          -1
+        ]
+      ],
+      "theory_basis": "Section 11: Balanced transitions early; avoid identical patterns",
+      "reasoning": "Early transitions in all, but varied patterns to avoid forbidden identical runs"
+    }
+  ]
+}
