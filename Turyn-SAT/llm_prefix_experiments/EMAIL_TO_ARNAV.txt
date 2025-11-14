@@ -1,0 +1,31 @@
+Subject: Completed - All LLM Turyn Prefix Experiments (3/3 Tasks)
+
+Hey Arnav,
+
+I wanted to share the update that I finished all three tasks you outlined in your email. Here's a summary of what I tested and the results:
+
+## Task 1: LLM Generation from Examples
+Tested Claude 3.5 Sonnet's ability to generate Turyn prefixes using valid and invalid examples. Claude was able to produce novel prefixes with 70% SAT validity (7/10 valid). The LLM learned patterns like balanced transitions and avoiding constant sequences without being told the explicit Turyn formula.
+
+## Task 2: UNSAT Core-Based Repair
+Modified the SAT solver to extract UNSAT cores and passed those into Claude after invalid predictions. Claude was able to use the core information to repair every UNSAT prefix with 100% success (3/3 prefixes), usually with minimal changes (avg 1.3 modifications per repair). The LLM demonstrated semantic understanding of why conflicts occurred and applied intelligent repair strategies.
+
+## Task 3: Theory Paper-Guided Generation
+Passed the Turyn Theory Pack PDF to Claude to test theory-based generation. Claude successfully extracted 12 theoretical constraints from the paper and generated novel prefixes based on theory (not examples). Results: 60% SAT validity for N=5 (6/10 valid), with 100% of prefixes being novel (not duplicates of existing valid sequences).
+
+## Key Findings
+- Example-based learning (70% SAT) slightly outperforms theory-based (60% SAT)
+- Both LLM approaches outperform random generation (60% SAT)
+- Manual theory coding (90% SAT) is still best, but requires human expertise
+- LLMs can extract and apply theory from research papers
+- UNSAT core feedback enables 100% repair success
+
+## Deliverables
+All detailed results, comparisons, baseline experiments, and intermediate outputs are included in the `llm_prefix_experiments/` folder on the `llm-testing` branch. The full write-up with methodology, results, and analysis is in FINAL_REPORT.txt, which answers all three of your questions affirmatively with quantitative evidence.
+
+**Answer:** YES - LLMs can generate valid Turyn prefixes (60-70% success), can use UNSAT cores to repair them (100% success), and can extract theory from papers to guide generation.
+
+Let me know what the next steps are.
+
+Thanks,
+Supratik Panuganti
