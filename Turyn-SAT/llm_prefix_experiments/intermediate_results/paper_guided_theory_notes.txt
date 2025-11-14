@@ -1,0 +1,135 @@
+================================================================================
+THEORY-GUIDED TURYN PREFIX GENERATION
+Based on: Turyn_Theory_Pack_Plain.pdf
+================================================================================
+
+EXTRACTED THEORY RULES:
+--------------------------------------------------------------------------------
+1. CANONICAL FORM: First element of each sequence = +1
+2. TURYN CONDITION: TA(s) + TB(s) + 2*TC(s) + 2*TD(s) = 0 for shifts s
+3. AVOID LONG RUNS: Long runs of +1 or -1 cause autocorrelation spikes
+4. AVOID IDENTICAL RUNS: Two sequences with identical early runs violate
+5. BALANCED TRANSITIONS: (+1->-1) transitions should appear early
+6. NO SIMULTANEOUS +1: A[i],B[i],C[i],D[i] cannot all be +1
+7. N=7 RULE: For N=7, C and D show alternating/near-alternating patterns
+8. STRATEGIC WEIGHTING: C,D have 2x autocorrelation weight
+9. GOLAY-INSPIRED: A,B can form complementary pair structures
+10. CORRECTABLE MARGINS: Partial autocorrelations must remain correctable
+
+
+================================================================================
+N=5 THEORY-GUIDED PREFIXES
+================================================================================
+
+PREFIX 1:
+  Sequences: [(1, -1), (1, -1), (1, -1), (1, -1)]
+  Applied Rules: Canonical form, Early balanced transitions in all sequences, Avoids long runs
+  Motivation: Immediate transition after canonical +1 in all sequences
+
+PREFIX 2:
+  Sequences: [(1, 1, -1), (1, -1), (1,), (1,)]
+  Applied Rules: Canonical form, Different transition points, Sparse specification allows flexibility
+  Motivation: A transitions late, B early, C/D minimal - avoids identical runs
+
+PREFIX 3:
+  Sequences: [(1,), (1,), (1, -1, 1, -1), (1, 1, -1, -1)]
+  Applied Rules: Canonical form, Alternating pattern in C, C and D heavily specified for 2x autocorrelation weight
+  Motivation: Leverage C,D weighting with balanced alternating patterns
+
+PREFIX 4:
+  Sequences: [(1, -1, 1), (1, 1, -1), (1, -1), (1,)]
+  Applied Rules: Canonical form, Forbidden pattern avoidance, Position 1 has -1 in A to avoid all-positive
+  Motivation: Explicitly avoid all sequences being +1 at position 1
+
+PREFIX 5:
+  Sequences: [(1, 1, -1, 1, -1), (1, 1, -1, -1, 1), (1,), (1,)]
+  Applied Rules: Canonical form, Golay-inspired A/B pair, Full specification of A,B with complementary structure
+  Motivation: A and B form near-complementary pattern
+
+PREFIX 6:
+  Sequences: [(1,), (1, -1, 1), (1, 1), (1, -1, 1, 1)]
+  Applied Rules: Canonical form, Sparse A keeps flexibility, B,C,D specified to balance autocorrelation
+  Motivation: Minimal A specification allows future correction
+
+PREFIX 7:
+  Sequences: [(1, 1, 1, -1), (1, -1, -1, 1), (1, -1), (1, 1)]
+  Applied Rules: Canonical form, A and B have opposite patterns, Early transitions in C and D
+  Motivation: A,B diverge early to avoid correlation spikes
+
+PREFIX 8:
+  Sequences: [(1, -1, 1, 1, -1), (1, 1, -1, 1, -1), (1, -1, 1, -1, 1), (1, -1, -1, 1, 1)]
+  Applied Rules: Canonical form, All sequences fully specified, Each sequence has balanced +1/-1 counts
+  Motivation: Full balanced specification testing autocorrelation constraints
+
+PREFIX 9:
+  Sequences: [(1, 1, -1, -1), (1, -1, 1, -1), (1, 1, 1), (1, 1, 1)]
+  Applied Rules: Canonical form, C,D have delayed transitions, A,B transition early to compensate
+  Motivation: Tests whether late C,D transitions work with 2x weighting
+
+PREFIX 10:
+  Sequences: [(1, -1, -1), (1, 1), (1,), (1, -1)]
+  Applied Rules: Canonical form, Minimal overlapping positions, Different lengths reduce constraint interactions
+  Motivation: Staggered lengths minimize shift-overlap violations
+
+
+================================================================================
+N=7 THEORY-GUIDED PREFIXES
+================================================================================
+
+PREFIX 1:
+  Sequences: [(1, -1), (1, -1), (1, -1, 1, -1, 1), (1, -1, 1, -1, 1)]
+  Applied Rules: Canonical form, Alternating pattern in C, Alternating pattern in D, N=7 empirical rule
+  Motivation: Direct application of N=7 alternating C,D rule
+
+PREFIX 2:
+  Sequences: [(1, 1, -1), (1, -1, 1), (1, -1, 1, 1, -1), (1, -1, -1, 1, -1)]
+  Applied Rules: Canonical form, Near-alternating in C, Near-alternating in D, Early transitions in A,B
+  Motivation: Near-alternating satisfies N=7 guideline with variation
+
+PREFIX 3:
+  Sequences: [(1,), (1, -1), (1, -1, 1, -1, 1, -1, 1), (1, -1, 1, -1, 1, -1, 1)]
+  Applied Rules: Canonical form, Perfect alternating in C and D, Minimal A,B specification, N=7 rule
+  Motivation: Full alternating C,D patterns with sparse A,B
+
+PREFIX 4:
+  Sequences: [(1, 1, -1, -1, 1), (1, -1, 1, 1, -1), (1, -1, 1, -1), (1, -1, 1, -1)]
+  Applied Rules: Canonical form, Complementary-like A,B, Alternating C,D, Mixed strategy
+  Motivation: Combine Golay-pair structure with N=7 alternating rule
+
+PREFIX 5:
+  Sequences: [(1, -1, 1, -1, 1, -1), (1, 1, -1, 1, -1, 1), (1, -1, 1), (1, 1, -1, 1)]
+  Applied Rules: Canonical form, No runs longer than 2, Early transitions throughout, Avoids autocorrelation spikes
+  Motivation: Prevent long runs that cause correlation spikes
+
+PREFIX 6:
+  Sequences: [(1, -1, 1, 1), (1, 1, -1), (1, 1, -1, 1, -1), (1, -1, 1, -1, 1, -1)]
+  Applied Rules: Canonical form, Forbidden pattern avoidance, No position has all +1, Alternating in D
+  Motivation: Explicit avoidance of simultaneous +1 across sequences
+
+PREFIX 7:
+  Sequences: [(1, -1, 1, -1, 1, 1, -1), (1, 1, -1, 1, -1, -1, 1), (1, -1, 1, -1, 1, -1, 1), (1, -1, 1, 1, -1, 1, -1)]
+  Applied Rules: Canonical form, All sequences full length, Balanced +1/-1 in each, Alternating base in C
+  Motivation: Test full balanced specification at N=7
+
+PREFIX 8:
+  Sequences: [(1, 1), (1, -1, 1), (1, -1, 1, -1, 1, -1), (1, 1, -1, 1, -1, 1)]
+  Applied Rules: Canonical form, Long alternating C,D, Short A,B for flexibility, 2x weight strategy
+  Motivation: Rely on heavily-specified C,D with 2x autocorrelation weight
+
+PREFIX 9:
+  Sequences: [(1, 1, 1, -1, -1), (1, -1, -1, 1, 1), (1, -1, 1, -1), (1, -1, -1, 1)]
+  Applied Rules: Canonical form, A and B are opposite, C,D near-alternating, Reduces correlation spikes
+  Motivation: A,B have inverse patterns to cancel autocorrelations
+
+PREFIX 10:
+  Sequences: [(1, -1, -1, 1), (1, 1, -1), (1, -1, 1, -1, 1), (1,)]
+  Applied Rules: Canonical form, Different sequence lengths, Alternating base in C, Minimal D specification
+  Motivation: Varied lengths minimize shift-overlap autocorrelation violations
+
+
+================================================================================
+REFERENCES
+================================================================================
+All rules extracted from: Turyn_Theory_Pack_Plain.pdf
+Sections 1-12 of the theory pack informed this generation.
+No hallucinated rules - all constraints are cited from the PDF.

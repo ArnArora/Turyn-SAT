@@ -1,0 +1,82 @@
+================================================================================
+PAPER-GUIDED PREFIX UNSAT-CORE REPAIR SUMMARY
+================================================================================
+
+N=5 CORRECTIONS
+--------------------------------------------------------------------------------
+
+Prefix 8:
+  Original:      [1,-1,1,1,-1] | [1,1,-1,1,-1] | [1,-1,1,-1,1] | [1,-1,-1,1,1]
+  UNSAT Core:    14 conflicting assignments
+  Corrected:     [1,-1,1,1,-1] | [1,1,-1,1,-1] | [1,-1,1,1,1] | [1,-1,-1,1,1]
+  Flips:         1 positions changed
+  Result:        UNSAT
+
+N=5 Success Rate: 0/1 (0.0%)
+
+
+================================================================================
+N=7 CORRECTIONS
+--------------------------------------------------------------------------------
+
+Prefix 1:
+  Original:      [1,-1] | [1,-1] | [1,-1,1,-1,1] | [1,-1,1,-1,1]
+  UNSAT Core:    14 conflicting assignments
+  Corrected:     [1,-1] | [1,-1] | [1,-1,1,-1,1] | [1,-1,-1,-1,1]
+  Flips:         1 positions changed
+  Result:        SAT
+
+Prefix 2:
+  Original:      [1,1,-1] | [1,-1,1] | [1,-1,1,1,-1] | [1,-1,-1,1,-1]
+  UNSAT Core:    16 conflicting assignments
+  Corrected:     [1,1,-1] | [1,-1,1] | [1,-1,1,1,-1] | [1,-1,-1,1,1]
+  Flips:         1 positions changed
+  Result:        SAT
+
+Prefix 3:
+  Original:      [1] | [1,-1] | [1,-1,1,-1,1,-1,1] | [1,-1,1,-1,1,-1,1]
+  UNSAT Core:    16 conflicting assignments
+  Corrected:     [1] | [1,-1] | [1,-1,1,-1,1,-1,1] | [1,-1,1,-1,1,1,1]
+  Flips:         1 positions changed
+  Result:        UNSAT
+
+Prefix 5:
+  Original:      [1,-1,1,-1,1,-1] | [1,1,-1,1,-1,1] | [1,-1,1] | [1,1,-1,1]
+  UNSAT Core:    16 conflicting assignments
+  Corrected:     [1,-1,1,-1,1,-1] | [1,1,-1,1,1,1] | [1,-1,-1] | [1,1,-1,1]
+  Flips:         2 positions changed
+  Result:        SAT
+
+Prefix 6:
+  Original:      [1,-1,1,1] | [1,1,-1] | [1,1,-1,1,-1] | [1,-1,1,-1,1,-1]
+  UNSAT Core:    18 conflicting assignments
+  Corrected:     [1,-1,1,1] | [1,1,-1] | [1,1,-1,1,-1] | [1,-1,1,1,1,-1]
+  Flips:         1 positions changed
+  Result:        SAT
+
+Prefix 7:
+  Original:      [1,-1,1,-1,1,1,-1] | [1,1,-1,1,-1,-1,1] | [1,-1,1,-1,1,-1,1] | [1,-1,1,1,-1,1,-1]
+  UNSAT Core:    18 conflicting assignments
+  Corrected:     [1,-1,1,-1,1,1,-1] | [1,1,-1,1,-1,-1,1] | [1,-1,1,1,1,-1,1] | [1,-1,1,1,-1,1,-1]
+  Flips:         1 positions changed
+  Result:        UNSAT
+
+Prefix 8:
+  Original:      [1,1] | [1,-1,1] | [1,-1,1,-1,1,-1] | [1,1,-1,1,-1,1]
+  UNSAT Core:    16 conflicting assignments
+  Corrected:     [1,1] | [1,-1,1] | [1,-1,-1,-1,1,-1] | [1,1,-1,1,-1,1]
+  Flips:         1 positions changed
+  Result:        SAT
+
+N=7 Success Rate: 5/7 (71.4%)
+Average Changes (successful): 1.2
+
+
+================================================================================
+OVERALL STATISTICS
+================================================================================
+
+Total UNSAT Prefixes:      8
+Successfully Corrected:    5 (62.5%)
+Still UNSAT:               3
+Average Changes:           1.20 bit flips

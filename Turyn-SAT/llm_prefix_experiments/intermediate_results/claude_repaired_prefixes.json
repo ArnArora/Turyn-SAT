@@ -1,0 +1,60 @@
+{
+  "r": 5,
+  "num_prefixes": 3,
+  "repair_method": "claude_llm_manual",
+  "model": "claude-3.5-sonnet",
+  "original_unsat_indices": [2, 4, 6],
+  "prefixes": [
+    {
+      "original_index": 2,
+      "original": [
+        [1, -1, 1, -1, 1],
+        [1, 1, 1, 1, 1],
+        [1, -1, 1, -1],
+        [1, 1]
+      ],
+      "repaired": [
+        [1, -1, 1],
+        [1, 1, -1],
+        [1, -1, 1, -1],
+        [1, 1]
+      ],
+      "changes": "Shortened A from length 5 to 3, shortened B from length 5 to 3 and changed pattern",
+      "num_changes": 2
+    },
+    {
+      "original_index": 4,
+      "original": [
+        [1, -1, -1, 1],
+        [1, 1, -1, -1],
+        [1, -1, 1],
+        [1, 1, -1]
+      ],
+      "repaired": [
+        [1, -1, -1, 1],
+        [1, 1, -1, -1],
+        [1, -1, 1],
+        [1, 1]
+      ],
+      "changes": "D truncated from [1,1,-1] to [1,1]",
+      "num_changes": 1
+    },
+    {
+      "original_index": 6,
+      "original": [
+        [1, -1, 1, 1, -1],
+        [1, 1, -1, 1, -1],
+        [1, -1, 1, 1],
+        [1, -1, -1]
+      ],
+      "repaired": [
+        [1, -1, 1, 1, -1],
+        [1, 1, 1, 1, -1],
+        [1, -1, 1, 1],
+        [1, -1, -1]
+      ],
+      "changes": "B[2]: -1 -> +1",
+      "num_changes": 1
+    }
+  ]
+}
