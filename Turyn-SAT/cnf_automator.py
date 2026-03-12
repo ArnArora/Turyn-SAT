@@ -69,4 +69,5 @@ def verify_assignment(assignment, varmap, cnf):
 
     with Minisat22(bootstrap_with=cnf) as solver:
         sat = solver.solve(assumptions=make_assumptions(varmap, assign))
-        return sat
+        core = solver.get_core()
+        return sat, core
