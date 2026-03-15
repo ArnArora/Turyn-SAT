@@ -4,6 +4,7 @@ and evaluation. Run with a sequence length (r) to get supervised learning and ev
 """
 
 import argparse
+import random
 import sys
 from pathlib import Path
 
@@ -261,6 +262,25 @@ def evaluate_policy(model, dataset, batch_size=256, device=None, return_mistakes
         "mistakes": mistakes if return_mistakes else None,
     }
 
+def evaluate_random_policy(train_dataset, test_dataset):
+    # Count each label in training dataset (works for Subset or full Dataset)
+    train_count_1 = sum(1 for i in range(len(train_dataset)) if train_dataset[i][1] == 1)
+    train_1_ratio = train_count_1 / max(len(train_dataset), 1)
+    tot_correct = 0
+    n = 0
+
+    for item in test_dataset:
+        x, y = item
+        pred = random.choices([0, 1], weights=[1 - train_1_ratio, train_1_ratio], k=1)[0]
+        if pred == y:
+            tot_correct += 1
+        n += 1
+
+    return {
+        "acc": tot_correct / max(n, 1),
+        "n": n,
+    }
+
 
 def create_and_filter_dataset(sequence_length, data_path=None):
     """
@@ -309,8 +329,9 @@ def run(sequence_length, data_path=None, test_frac=0.2, epochs=30, batch_size=64
 
     # Evaluation on the test split (test_ds is a Subset from random_split)
     eval_results = evaluate_policy(model, test_ds)
+    random_policy_results = evaluate_random_policy(train_ds, test_ds)
 
-    return model, train_ds, test_ds, hist, eval_results
+    return model, train_ds, test_ds, hist, eval_results, random_policy_results
 
 
 def main():
@@ -348,7 +369,7 @@ def main():
     )
     args = parser.parse_args()
 
-    model, train_ds, test_ds, hist, eval_results = run(
+    model, train_ds, test_ds, hist, eval_results, random_policy_results = run(
         sequence_length=args.sequence_length,
         data_path=args.data,
         test_frac=args.test_frac,
@@ -361,6 +382,9 @@ def main():
     print(f"  acc:  {eval_results['acc']:.4f}")
     print(f"  n:    {eval_results['n']}")
 
+    print("\n--- Evaluation (random policy) ---")
+    print(f"  acc: {random_policy_results['acc']:.4f}")
+    print(f"  n:   {random_policy_results['n']}")
 
 if __name__ == "__main__":
     main()
