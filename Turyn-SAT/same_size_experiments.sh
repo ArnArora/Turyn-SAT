@@ -11,6 +11,6 @@ virtualenv --no-download $SLURM_TMPDIR/env
 source $SLURM_TMPDIR/env/bin/activate
 
 pip install --no-index --upgrade pip
-pip install --no-index torch numpy python-sat
+pip install --no-index torch numpy pysat
 
 python turyn_policy_transformer.py 7 --test-frac 0.2 --epochs 10
