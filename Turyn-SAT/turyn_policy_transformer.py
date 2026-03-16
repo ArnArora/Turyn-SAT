@@ -6,6 +6,7 @@ and evaluation. Run with a sequence length (r) to get supervised learning and ev
 import argparse
 import random
 import sys
+import copy
 from pathlib import Path
 
 import torch
@@ -19,6 +20,7 @@ if str(_SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(_SCRIPT_DIR))
 
 from sequence_generator import generate_dataset
+from cnf_automator import verify_assignment, generate_encoding
 
 PAD_ID = 2
 
@@ -263,7 +265,6 @@ def evaluate_policy(model, dataset, batch_size=256, device=None, return_mistakes
     }
 
 def evaluate_random_policy(train_dataset, test_dataset):
-    # Count each label in training dataset (works for Subset or full Dataset)
     train_count_1 = sum(1 for i in range(len(train_dataset)) if train_dataset[i][1] == 1)
     train_1_ratio = train_count_1 / max(len(train_dataset), 1)
     tot_correct = 0
@@ -279,6 +280,202 @@ def evaluate_random_policy(train_dataset, test_dataset):
     return {
         "acc": tot_correct / max(n, 1),
         "n": n,
+    }
+
+
+@torch.no_grad()
+def predict_next_bit_from_prefix(model, cur_seq, device=None, temperature=1.0, strategy="argmax"):
+    """
+    cur_seq: list of sequences, e.g. [X, Y, Z, W], each a list/1D tensor of ±1
+    returns: dict(pred in {0,1}, conf, probs[2], logits[2])
+    """
+    device = device or ("cuda" if torch.cuda.is_available() else "cpu")
+    model.eval().to(device)
+
+    bits = flatten_state(cur_seq)
+    T = bits.numel()
+    max_len = model.pos_emb.num_embeddings
+
+    if T > max_len:
+        raise ValueError(f"prefix length {T} exceeds model max_len {max_len}")
+
+    x = torch.full((1, T if T > 0 else 1), PAD_ID, dtype=torch.long)
+    if T > 0:
+        x[0, :T] = bits
+    pad_mask = x == PAD_ID
+
+    x, pad_mask = x.to(device), pad_mask.to(device)
+    logits = model(x, pad_mask=pad_mask).squeeze(0)
+
+    if temperature != 1.0:
+        logits = logits / temperature
+    probs = torch.softmax(logits, dim=-1)
+
+    if strategy == "sample":
+        pred = int(torch.multinomial(probs, 1).item())
+    else:
+        pred = int(probs.argmax().item())
+
+    return {
+        "pred": pred,
+        "conf": float(probs[pred].item()),
+        "probs": probs.detach().cpu(),
+        "logits": logits.detach().cpu(),
+    }
+
+
+def _add_bit_to_seq(seq, next_bit):
+    """
+    Match the notebook's add(seq, next_bit): keep rows as equal-length as possible.
+    """
+    first_len = len(seq[0])
+    added = False
+    for i in range(4):
+        if len(seq[i]) < first_len:
+            seq[i] = seq[i] + (next_bit,)
+            added = True
+            break
+    if not added:
+        seq[0] = seq[0] + (next_bit,)
+    return seq
+
+
+def evaluate_model_with_sat(model, r=11, max_steps=None, device=None):
+    """
+    Load a trained model, iteratively predict next bits, check each choice with the SAT solver,
+    and return final metrics (mirroring the notebook cell).
+    """
+    device = device or ("cuda" if torch.cuda.is_available() else "cpu")
+
+    # Initial all-ones prefix as in the notebook
+    seq = [(1,), (1,), (1,), (1,)]
+
+    cnf, varmap, pmap_lags, pool = generate_encoding(r)
+    rev_varmap = {v: k for k, v in varmap.items()}
+
+    model.eval()
+
+    num_unsat = 0
+    sum_unsat = 0
+    count_right = 0
+    count_wrong = 0
+    pred_one = 0
+    count_one = 0
+    count_total = 0
+    first_incorrect = -1
+
+    steps = max_steps if max_steps is not None else 4 * (r - 1)
+
+    for i in range(steps):
+        res = predict_next_bit_from_prefix(model, seq, device=device)
+        next_bit = res["pred"]
+        prev_seq = copy.deepcopy(seq)
+        seq = _add_bit_to_seq(seq, next_bit)
+
+        sat, core = verify_assignment(seq, varmap, cnf)
+
+        if core:
+            if first_incorrect == -1:
+                first_incorrect = i + 4
+            num_unsat += 1
+            sum_unsat += len(core)
+            seq = copy.deepcopy(prev_seq)
+            seq = _add_bit_to_seq(seq, 1 - next_bit)
+
+        alt_seq = _add_bit_to_seq(copy.deepcopy(prev_seq), 1 - next_bit)
+        sat_alt, core_alt = verify_assignment(alt_seq, varmap, cnf)
+
+        if core or core_alt:
+            print(i, "ONLY ONE CHOICE WORKS")
+            if core:
+                print("WRONG")
+                count_wrong += 1
+            else:
+                print("RIGHT")
+                count_right += 1
+
+    return {
+        "count_right": count_right,
+        "count_wrong": count_wrong,
+        "pred_one": pred_one,
+        "count_one": count_one,
+        "count_total": count_total,
+        "final_seq": seq,
+        "first_incorrect": first_incorrect,
+        "num_unsat": num_unsat,
+        "sum_unsat": sum_unsat,
+    }
+
+
+def evaluate_random_policy_with_sat(train_dataset, r=11, max_steps=None):
+    """
+    Sequential SAT-guided evaluation using a random policy.
+
+    The random policy samples bits with probabilities equal to the label
+    distribution in the training dataset (0/1 labels), analogous to
+    evaluate_random_policy, but applied in the sequential SAT setting.
+    """
+    train_count_1 = sum(1 for i in range(len(train_dataset)) if train_dataset[i][1] == 1)
+    train_1_ratio = train_count_1 / max(len(train_dataset), 1)
+
+    seq = [(1,), (1,), (1,), (1,)]
+
+    cnf, varmap, pmap_lags, pool = generate_encoding(r)
+    rev_varmap = {v: k for k, v in varmap.items()}
+
+    num_unsat = 0
+    sum_unsat = 0
+    count_right = 0
+    count_wrong = 0
+    pred_one = 0
+    count_one = 0
+    count_total = 0
+    first_incorrect = -1
+
+    steps = max_steps if max_steps is not None else 4 * (r - 1)
+
+    for i in range(steps):
+        next_bit = random.choices(
+            [0, 1],
+            weights=[1.0 - train_1_ratio, train_1_ratio],
+            k=1,
+        )[0]
+
+        prev_seq = copy.deepcopy(seq)
+        seq = _add_bit_to_seq(seq, next_bit)
+
+        sat, core = verify_assignment(seq, varmap, cnf)
+
+        if core:
+            if first_incorrect == -1:
+                first_incorrect = i + 4
+            num_unsat += 1
+            sum_unsat += len(core)
+            seq = copy.deepcopy(prev_seq)
+            seq = _add_bit_to_seq(seq, 1 - next_bit)
+
+        alt_seq = _add_bit_to_seq(copy.deepcopy(prev_seq), 1 - next_bit)
+        sat_alt, core_alt = verify_assignment(alt_seq, varmap, cnf)
+
+        if core or core_alt:
+            print(i, "ONLY ONE CHOICE WORKS")
+            if core:
+                print("WRONG")
+                count_wrong += 1
+            else:
+                print("RIGHT")
+                count_right += 1
+
+    return {
+        "count_right": count_right,
+        "count_wrong": count_wrong,
+        "pred_one": pred_one,
+        "count_one": count_one,
+        "count_total": count_total,
+        "final_seq": seq,
+        "first_incorrect": first_incorrect,
+        "num_unsat": num_unsat,
+        "sum_unsat": sum_unsat,
     }
 
 
@@ -306,7 +503,7 @@ def create_and_filter_dataset(sequence_length, data_path=None):
     if dropped:
         print(f"[data] dropped {dropped} samples with prefix length < {min_len}")
     return filtered
-
+    
 
 def run(sequence_length, data_path=None, test_frac=0.2, epochs=30, batch_size=64):
     """
@@ -327,11 +524,23 @@ def run(sequence_length, data_path=None, test_frac=0.2, epochs=30, batch_size=64
         batch_size=batch_size,
     )
 
-    # Evaluation on the test split (test_ds is a Subset from random_split)
     eval_results = evaluate_policy(model, test_ds)
     random_policy_results = evaluate_random_policy(train_ds, test_ds)
 
     return model, train_ds, test_ds, hist, eval_results, random_policy_results
+
+
+def run_sat_evaluations(train_dataset, model, r):
+    """
+    Run both SAT-based evaluations:
+      - evaluate_model_with_sat: model policy
+      - evaluate_random_policy_with_sat: random policy using train label ratios
+
+    Returns (model_sat_results, random_sat_results), each a dict.
+    """
+    model_sat_results = evaluate_model_with_sat(model, r=r)
+    random_sat_results = evaluate_random_policy_with_sat(train_dataset, r=r)
+    return model_sat_results, random_sat_results
 
 
 def main():
@@ -385,6 +594,24 @@ def main():
     print("\n--- Evaluation (random policy) ---")
     print(f"  acc: {random_policy_results['acc']:.4f}")
     print(f"  n:   {random_policy_results['n']}")
+
+    model_sat_results, random_sat_sat_results = run_sat_evaluations(
+            train_ds, model, r=args.sequence_length
+    )
+
+    print("\n--- SAT Evaluation (model policy) ---")
+    print(f"  count_right:     {model_sat_results['count_right']}")
+    print(f"  count_wrong:     {model_sat_results['count_wrong']}")
+    print(f"  first_incorrect: {model_sat_results['first_incorrect']}")
+    print(f"  num_unsat:       {model_sat_results['num_unsat']}")
+    print(f"  sum_unsat:       {model_sat_results['sum_unsat']}")
+
+    print("\n--- SAT Evaluation (random policy) ---")
+    print(f"  count_right:     {random_sat_sat_results['count_right']}")
+    print(f"  count_wrong:     {random_sat_sat_results['count_wrong']}")
+    print(f"  first_incorrect: {random_sat_sat_results['first_incorrect']}")
+    print(f"  num_unsat:       {random_sat_sat_results['num_unsat']}")
+    print(f"  sum_unsat:       {random_sat_sat_results['sum_unsat']}")
 
 if __name__ == "__main__":
     main()
