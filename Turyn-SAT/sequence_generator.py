@@ -171,17 +171,35 @@ def create_partial_str_next_bit(seq, next_bit):
         s += "0"
     return s
 
-def generate_dataset(r):
-    ## Get rid of empty sequence, account for repeat sequences
+def generate_dataset(r, limit=None):
+    """
+    Generate dataset of (partial_seq, next_bit) pairs for length r.
+
+    - Iterates over all sums from generate_sums(r) via generate_all_turyns(r).
+    - Deduplicates by partial prefix + next_bit.
+    - If limit is set, stops once limit unique samples have been generated.
+
+    Each full Turyn sequence contributes at most 4*r partials before deduplication.
+    """
     dataset = []
-    partials = generate_partial_sequences(r)
     partial_set = set()
-    for partial in partials:
-        partial_seq, next_bit = partial
-        partial_str = create_partial_str_next_bit(partial_seq, next_bit)
-        if partial_str not in partial_set:
-            partial_set.add(partial_str)
-            dataset.append(partial)
+
+    seqs = generate_all_turyns(r)
+    new_seqs = canonicalize_all_seqs(seqs)
+
+    for seq in new_seqs:
+        # Each full sequence yields up to 4*r partials (row-major over columns)
+        for col in range(r):
+            for row in range(4):
+                partial_seq, next_bit = get_partial(seq, r, row, col)
+                partial_str = create_partial_str_next_bit(partial_seq, next_bit)
+                if partial_str in partial_set:
+                    continue
+                partial_set.add(partial_str)
+                dataset.append((partial_seq, next_bit))
+                if limit is not None and len(dataset) >= limit:
+                    return dataset
+
     return dataset
 
 def get_partial_only(arr, r, row, col):

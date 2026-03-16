@@ -479,7 +479,7 @@ def evaluate_random_policy_with_sat(train_dataset, r=11, max_steps=None):
     }
 
 
-def create_and_filter_dataset(sequence_length, data_path=None):
+def create_and_filter_dataset(sequence_length, data_path=None, limit=None):
     """
     Create dataset for the given sequence length (r).
     If data_path is set, load from pickle; otherwise call generate_dataset(sequence_length).
@@ -493,7 +493,7 @@ def create_and_filter_dataset(sequence_length, data_path=None):
         print(f"[data] loaded {len(samples)} samples from {data_path}")
     else:
         print(f"[data] generating dataset for sequence_length={sequence_length}...")
-        samples = generate_dataset(sequence_length)
+        samples = generate_dataset(sequence_length, limit=limit)
         print(f"[data] generated {len(samples)} samples")
 
     # Filter short prefixes (same as notebook: len(item[0][0]) <= 3 removed)
@@ -505,12 +505,12 @@ def create_and_filter_dataset(sequence_length, data_path=None):
     return filtered
     
 
-def run(sequence_length, data_path=None, test_frac=0.2, epochs=30, batch_size=64):
+def run(sequence_length, data_path=None, limit=None, test_frac=0.2, epochs=30, batch_size=64):
     """
     Run full pipeline: create dataset, train with split, evaluate on test set.
     Returns (model, train_ds, test_ds, hist, eval_results).
     """
-    samples = create_and_filter_dataset(sequence_length, data_path=data_path)
+    samples = create_and_filter_dataset(sequence_length, data_path=data_path, limit=limit)
     if not samples:
         raise ValueError(
             "No samples after filtering. Try a different sequence_length or data_path."
@@ -576,11 +576,18 @@ def main():
         default=64,
         help="Batch size (default: 64).",
     )
+    parser.add_argument(
+        "--limit",
+        type=int,
+        default=None,
+        help="Optional cap on generated dataset size (unique partial+label samples).",
+    )
     args = parser.parse_args()
 
     model, train_ds, test_ds, hist, eval_results, random_policy_results = run(
         sequence_length=args.sequence_length,
         data_path=args.data,
+        limit=args.limit,
         test_frac=args.test_frac,
         epochs=args.epochs,
         batch_size=args.batch_size,
