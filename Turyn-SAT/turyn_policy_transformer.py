@@ -4,10 +4,12 @@ and evaluation. Run with a sequence length (r) to get supervised learning and ev
 """
 
 import argparse
+import copy
+import pickle
 import random
 import sys
-import copy
 from pathlib import Path
+from typing import Any, List, Optional, Tuple
 
 import torch
 import torch.nn as nn
@@ -19,10 +21,13 @@ _SCRIPT_DIR = Path(__file__).resolve().parent
 if str(_SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(_SCRIPT_DIR))
 
-from sequence_generator import generate_dataset
+from sequence_generator_sat import generate_dataset_sat
 from cnf_automator import verify_assignment, generate_encoding
 
 PAD_ID = 2
+
+# (partial as four rows of tuples, next_bit in {-1, 1}) — same as create_partials output
+Sample = Tuple[Any, int]
 
 
 def flatten_state(cur_seq):
@@ -129,6 +134,55 @@ class PolicyOnlyTransformer(nn.Module):
 
         logits = self.head(self.norm(last_h))
         return logits
+
+
+def save_samples_pickle(samples: List[Sample], path: str | Path) -> None:
+    """Write filtered (partial, next_bit) samples with pickle (compatible with --data)."""
+    p = Path(path)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    with open(p, "wb") as f:
+        pickle.dump(samples, f, protocol=pickle.HIGHEST_PROTOCOL)
+    print(f"[save] wrote {len(samples)} samples to {p}")
+
+
+def save_policy_checkpoint(
+    model: nn.Module,
+    path: str | Path,
+    *,
+    r: int,
+    hist: Optional[dict] = None,
+    train_config: Optional[dict] = None,
+) -> None:
+    """Save state_dict and kwargs needed to rebuild PolicyOnlyTransformer."""
+    p = Path(path)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "state_dict": model.state_dict(),
+        "r": r,
+        "policy_kwargs": {
+            "vocab_size": 3,
+            "pad_id": PAD_ID,
+            "max_len": getattr(model.pos_emb, "num_embeddings", 4096),
+        },
+    }
+    if hist is not None:
+        payload["hist"] = hist
+    if train_config is not None:
+        payload["train_config"] = train_config
+    torch.save(payload, p)
+    print(f"[save] wrote model checkpoint to {p}")
+
+
+def load_policy_checkpoint(
+    path: str | Path, device: Optional[str] = None
+) -> Tuple[PolicyOnlyTransformer, dict]:
+    """Load a checkpoint written by save_policy_checkpoint."""
+    device = device or ("cuda" if torch.cuda.is_available() else "cpu")
+    payload = torch.load(Path(path), map_location=device)
+    kw = dict(payload["policy_kwargs"])
+    model = PolicyOnlyTransformer(**kw).to(device)
+    model.load_state_dict(payload["state_dict"])
+    return model, payload
 
 
 @torch.no_grad()
@@ -479,10 +533,13 @@ def evaluate_random_policy_with_sat(train_dataset, r=11, max_steps=None):
     }
 
 
-def create_and_filter_dataset(sequence_length, data_path=None, limit=None):
+def create_and_filter_dataset(
+    sequence_length, data_path=None, limit=None, partial_flat_len=4
+):
     """
     Create dataset for the given sequence length (r).
-    If data_path is set, load from pickle; otherwise call generate_dataset(sequence_length).
+    If data_path is set, load from pickle; otherwise call generate_dataset_sat
+    with the given partial_flat_len (total bits in the random partial before SAT extension).
     Drops samples where the first row has length <= min_prefix_len - 1 (notebook used 3 → keep len >= 4).
     """
     if data_path and Path(data_path).exists():
@@ -492,8 +549,21 @@ def create_and_filter_dataset(sequence_length, data_path=None, limit=None):
             samples = pickle.load(f)
         print(f"[data] loaded {len(samples)} samples from {data_path}")
     else:
-        print(f"[data] generating dataset for sequence_length={sequence_length}...")
-        samples = generate_dataset(sequence_length, limit=limit)
+        if partial_flat_len < 4 or partial_flat_len >= 4 * sequence_length:
+            raise ValueError(
+                f"partial_flat_len must be in [4, 4*r), got {partial_flat_len} for r={sequence_length}"
+            )
+        print(
+            f"[data] generating SAT dataset for sequence_length={sequence_length}, "
+            f"partial_flat_len={partial_flat_len}..."
+        )
+        samples = generate_dataset_sat(
+            sequence_length,
+            partial_flat_len=partial_flat_len,
+            limit=limit,
+            max_partial_tries_per_seq=10,
+            verbose=False
+        )
         print(f"[data] generated {len(samples)} samples")
 
     # Filter short prefixes (same as notebook: len(item[0][0]) <= 3 removed)
@@ -505,16 +575,37 @@ def create_and_filter_dataset(sequence_length, data_path=None, limit=None):
     return filtered
     
 
-def run(sequence_length, data_path=None, limit=None, test_frac=0.2, epochs=30, batch_size=64):
+def run(
+    sequence_length,
+    data_path=None,
+    limit=None,
+    partial_flat_len=4,
+    test_frac=0.2,
+    epochs=30,
+    batch_size=64,
+    save_model_path=None,
+    save_data_path=None,
+):
     """
     Run full pipeline: create dataset, train with split, evaluate on test set.
-    Returns (model, train_ds, test_ds, hist, eval_results).
+    Returns (model, train_ds, test_ds, hist, eval_results, random_policy_results).
+
+    If ``save_data_path`` is set, writes the filtered training samples (pickle).
+    If ``save_model_path`` is set, writes model state and metadata after training.
     """
-    samples = create_and_filter_dataset(sequence_length, data_path=data_path, limit=limit)
+    samples = create_and_filter_dataset(
+        sequence_length,
+        data_path=data_path,
+        limit=limit,
+        partial_flat_len=partial_flat_len,
+    )
     if not samples:
         raise ValueError(
             "No samples after filtering. Try a different sequence_length or data_path."
         )
+
+    if save_data_path:
+        save_samples_pickle(samples, save_data_path)
 
     model, (train_ds, test_ds), hist = train_with_split(
         samples,
@@ -526,6 +617,22 @@ def run(sequence_length, data_path=None, limit=None, test_frac=0.2, epochs=30, b
 
     eval_results = evaluate_policy(model, test_ds)
     random_policy_results = evaluate_random_policy(train_ds, test_ds)
+
+    if save_model_path:
+        save_policy_checkpoint(
+            model,
+            save_model_path,
+            r=sequence_length,
+            hist=hist,
+            train_config={
+                "epochs": epochs,
+                "batch_size": batch_size,
+                "test_frac": test_frac,
+                "partial_flat_len": partial_flat_len,
+                "limit": limit,
+                "data_path": data_path,
+            },
+        )
 
     return model, train_ds, test_ds, hist, eval_results, random_policy_results
 
@@ -556,7 +663,17 @@ def main():
         "--data",
         type=str,
         default=None,
-        help="Optional path to pickle file with pre-generated samples (skips generate_dataset).",
+        help="Optional path to pickle file with pre-generated samples (skips generate_dataset_sat).",
+    )
+    parser.add_argument(
+        "--partial-flat-len",
+        type=int,
+        default=4,
+        metavar="L",
+        help=(
+            "Total bits in the random partial before SAT extension; must satisfy 4 <= L < 4*r "
+            "(default: 4). Ignored when loading from --data."
+        ),
     )
     parser.add_argument(
         "--test-frac",
@@ -582,15 +699,32 @@ def main():
         default=None,
         help="Optional cap on generated dataset size (unique partial+label samples).",
     )
+    parser.add_argument(
+        "--save-model",
+        type=str,
+        default=None,
+        metavar="PATH",
+        help="Save trained policy checkpoint (.pt) with state_dict and r for reload.",
+    )
+    parser.add_argument(
+        "--save-data",
+        type=str,
+        default=None,
+        metavar="PATH",
+        help="Save filtered (partial, next_bit) samples as pickle (same format as --data).",
+    )
     args = parser.parse_args()
 
     model, train_ds, test_ds, hist, eval_results, random_policy_results = run(
         sequence_length=args.sequence_length,
         data_path=args.data,
         limit=args.limit,
+        partial_flat_len=args.partial_flat_len,
         test_frac=args.test_frac,
         epochs=args.epochs,
         batch_size=args.batch_size,
+        save_model_path=args.save_model,
+        save_data_path=args.save_data,
     )
 
     print("\n--- Evaluation (test set) ---")

@@ -86,7 +86,7 @@ def generate_all_turyns(r):
     # generate sequences for each sum
     for sum_arr in sums:
         seqs.extend(generate_turyns_sum(r, sum_arr))
-    
+        print(len(seqs))
     return seqs
 
 def create_str(tup):
@@ -100,12 +100,23 @@ def create_str(tup):
 
 def canonicalize_seq(seq):
     # reverse c and d
-    reversed_c = seq[2][::-1]
-    reversed_d = seq[3][::-1]
-    if (create_str(reversed_c) < create_str(seq[2])):
-        seq[2] = reversed_c
-    if (create_str(reversed_d) < create_str(seq[3])):
-        seq[3] = reversed_d
+    reversed_index_one = -1
+    reversed_index_two = -1
+    for i in range(4):
+        subseq = seq[i]
+        if subseq[0] == subseq[-1]:
+            if reversed_index_one == -1:
+                reversed_index_one = i
+            else:
+                reversed_index_two = i
+                break
+    if reversed_index_one != -1 and reversed_index_two != -1:
+        reversed_subseq_one = seq[reversed_index_one][::-1]
+        reversed_subseq_two = seq[reversed_index_two][::-1]
+        if create_str(reversed_subseq_one) < create_str(seq[reversed_index_one]):
+            seq[reversed_index_one] = reversed_subseq_one
+        if create_str(reversed_subseq_two) < create_str(seq[reversed_index_two]):
+            seq[reversed_index_two] = reversed_subseq_two
     # sort subsequences
     sorted(seq, key=create_str)
     return seq
@@ -113,6 +124,8 @@ def canonicalize_seq(seq):
 def canonicalize_all_seqs(seqs):
     new_seqs = []
     for seq in seqs:
+        print("Canonicalizing sequence:", seq)
+        print("Sum of sequence:", [sum(subseq) for subseq in seq])
         new_seqs.append(canonicalize_seq(seq))
     return new_seqs
 
@@ -171,35 +184,17 @@ def create_partial_str_next_bit(seq, next_bit):
         s += "0"
     return s
 
-def generate_dataset(r, limit=None):
-    """
-    Generate dataset of (partial_seq, next_bit) pairs for length r.
-
-    - Iterates over all sums from generate_sums(r) via generate_all_turyns(r).
-    - Deduplicates by partial prefix + next_bit.
-    - If limit is set, stops once limit unique samples have been generated.
-
-    Each full Turyn sequence contributes at most 4*r partials before deduplication.
-    """
+def generate_dataset(r):
+    ## Get rid of empty sequence, account for repeat sequences
     dataset = []
+    partials = generate_partial_sequences(r)
     partial_set = set()
-
-    seqs = generate_all_turyns(r)
-    new_seqs = canonicalize_all_seqs(seqs)
-
-    for seq in new_seqs:
-        # Each full sequence yields up to 4*r partials (row-major over columns)
-        for col in range(r):
-            for row in range(4):
-                partial_seq, next_bit = get_partial(seq, r, row, col)
-                partial_str = create_partial_str_next_bit(partial_seq, next_bit)
-                if partial_str in partial_set:
-                    continue
-                partial_set.add(partial_str)
-                dataset.append((partial_seq, next_bit))
-                if limit is not None and len(dataset) >= limit:
-                    return dataset
-
+    for partial in partials:
+        partial_seq, next_bit = partial
+        partial_str = create_partial_str_next_bit(partial_seq, next_bit)
+        if partial_str not in partial_set:
+            partial_set.add(partial_str)
+            dataset.append(partial)
     return dataset
 
 def get_partial_only(arr, r, row, col):
