@@ -5,6 +5,7 @@ and evaluation. Run with a sequence length (r) to get supervised learning and ev
 
 import argparse
 import copy
+from collections import deque
 import pickle
 import random
 import sys
@@ -201,6 +202,30 @@ def evaluate_epoch(model, loader, device):
     return (tot_loss / max(n, 1), tot_correct / max(n, 1))
 
 
+def _epochs_for_midtraining_saves(total_epochs: int, n_saves: int = 5) -> List[int]:
+    """
+    Epoch indices (1-based) at which to save checkpoints: n_saves saves starting from
+    the halfway epoch. If fewer than n_saves epochs remain from halfway to the end,
+    epochs are chosen evenly from halfway through the final epoch (may repeat).
+    """
+    if total_epochs < 1 or n_saves < 1:
+        return []
+    first = max(1, (total_epochs + 1) // 2)
+    last = total_epochs
+    span = last - first + 1
+    if span >= n_saves:
+        return [first + i for i in range(n_saves)]
+    if span <= 1:
+        return [last] * n_saves
+    out: List[int] = []
+    for k in range(n_saves):
+        t = k / (n_saves - 1) if n_saves > 1 else 0.0
+        ep = int(round(first + (last - first) * t))
+        ep = max(first, min(last, ep))
+        out.append(ep)
+    return out
+
+
 def train_with_split(
     samples,
     test_frac=0.2,
@@ -210,6 +235,10 @@ def train_with_split(
     batch_size=64,
     lr=3e-4,
     device=None,
+    mid_checkpoint_base: Optional[str | Path] = None,
+    mid_checkpoint_r: Optional[int] = None,
+    mid_checkpoint_train_config: Optional[dict] = None,
+    n_mid_checkpoints: int = 5,
 ):
     """Train with train/test split. No plotting."""
     device = device or ("cuda" if torch.cuda.is_available() else "cpu")
@@ -249,6 +278,12 @@ def train_with_split(
 
     hist = {"train_loss": [], "train_acc": [], "test_loss": [], "test_acc": []}
 
+    mid_save_schedule: deque[int] = deque()
+    if mid_checkpoint_base is not None and mid_checkpoint_r is not None:
+        mid_save_schedule = deque(
+            _epochs_for_midtraining_saves(epochs, n_mid_checkpoints)
+        )
+
     for ep in range(1, epochs + 1):
         model.train()
         for X, Y, M in train_loader:
@@ -273,6 +308,23 @@ def train_with_split(
             f"epoch {ep:3d} | train loss {tr_loss:.4f} acc {tr_acc:.3f} | "
             f"test loss {te_loss:.4f} acc {te_acc:.3f}"
         )
+
+        while mid_save_schedule and mid_save_schedule[0] == ep:
+            mid_save_schedule.popleft()
+            base = Path(mid_checkpoint_base)
+            stem = base.stem
+            suffix = base.suffix if base.suffix else ".pt"
+            # Ordinal prefix so five files are always distinct (even if epochs repeat).
+            n_done = n_mid_checkpoints - len(mid_save_schedule)
+            out_path = base.parent / f"{stem}_mid_{n_done:02d}_ep{ep:03d}{suffix}"
+            hist_so_far = {k: list(v) for k, v in hist.items()}
+            save_policy_checkpoint(
+                model,
+                out_path,
+                r=mid_checkpoint_r,
+                hist=hist_so_far,
+                train_config=mid_checkpoint_train_config,
+            )
 
     return model, (train_ds, test_ds), hist
 
@@ -591,7 +643,9 @@ def run(
     Returns (model, train_ds, test_ds, hist, eval_results, random_policy_results).
 
     If ``save_data_path`` is set, writes the filtered training samples (pickle).
-    If ``save_model_path`` is set, writes model state and metadata after training.
+    If ``save_model_path`` is set, writes five checkpoints from the halfway epoch
+    onward (names ``<stem>_mid_01_epXXX.pt``, …) during training, then the final
+    checkpoint at ``save_model_path`` after training.
     """
     samples = create_and_filter_dataset(
         sequence_length,
@@ -607,12 +661,23 @@ def run(
     if save_data_path:
         save_samples_pickle(samples, save_data_path)
 
+    train_config = {
+        "epochs": epochs,
+        "batch_size": batch_size,
+        "test_frac": test_frac,
+        "partial_flat_len": partial_flat_len,
+        "limit": limit,
+        "data_path": data_path,
+    }
     model, (train_ds, test_ds), hist = train_with_split(
         samples,
         test_frac=test_frac,
         seed=42,
         epochs=epochs,
         batch_size=batch_size,
+        mid_checkpoint_base=save_model_path,
+        mid_checkpoint_r=sequence_length if save_model_path else None,
+        mid_checkpoint_train_config=train_config if save_model_path else None,
     )
 
     eval_results = evaluate_policy(model, test_ds)
@@ -624,14 +689,7 @@ def run(
             save_model_path,
             r=sequence_length,
             hist=hist,
-            train_config={
-                "epochs": epochs,
-                "batch_size": batch_size,
-                "test_frac": test_frac,
-                "partial_flat_len": partial_flat_len,
-                "limit": limit,
-                "data_path": data_path,
-            },
+            train_config=train_config,
         )
 
     return model, train_ds, test_ds, hist, eval_results, random_policy_results
