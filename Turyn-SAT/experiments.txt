@@ -1,3 +1,9 @@
 python turyn_policy_transformer.py 7 --test-frac 0.2 --epochs 15 --partial-flat-len 4 --limit 10000 --save-model model_7.pt --save-data data_7.pkl
 python turyn_policy_transformer.py 9 --test-frac 0.2 --epochs 20 --partial-flat-len 4 --limit 12000 --save-model model_9.pt --save-data data_9.pkl
 python turyn_policy_transformer.py 11 --test-frac 0.2 --epochs 20 --partial-flat-len 4 --limit 20000 --save-model model_11.pt --save-data data_11.pkl
+python turyn_policy_transformer.py 13 --test-frac 0.2 --epochs 20 --partial-flat-len 4 --limit 60000 --save-model model_13.pt --save-data data_13.pkl
+python turyn_policy_transformer.py 15 --test-frac 0.2 --epochs 25 --partial-flat-len 4 --limit 40000 --save-model model_15.pt --save-data data_15.pkl
+python turyn_policy_transformer.py 17 --test-frac 0.2 --epochs 30 --partial-flat-len 4 --limit 50000 --save-model model_17.pt --save-data data_17.pkl
+
+9: model_9_mid_03_ep012, model_9_mid_04_ep013
+
