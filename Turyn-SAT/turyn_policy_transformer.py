@@ -137,7 +137,7 @@ class PolicyOnlyTransformer(nn.Module):
         return logits
 
 
-def save_samples_pickle(samples: List[Sample], path: str | Path) -> None:
+def save_samples_pickle(samples: List[Sample], path: str) -> None:
     """Write filtered (partial, next_bit) samples with pickle (compatible with --data)."""
     p = Path(path)
     p.parent.mkdir(parents=True, exist_ok=True)
@@ -148,7 +148,7 @@ def save_samples_pickle(samples: List[Sample], path: str | Path) -> None:
 
 def save_policy_checkpoint(
     model: nn.Module,
-    path: str | Path,
+    path: str,
     *,
     r: int,
     hist: Optional[dict] = None,
@@ -175,7 +175,7 @@ def save_policy_checkpoint(
 
 
 def load_policy_checkpoint(
-    path: str | Path, device: Optional[str] = None
+    path: str, device: Optional[str] = None
 ) -> Tuple[PolicyOnlyTransformer, dict]:
     """Load a checkpoint written by save_policy_checkpoint."""
     device = device or ("cuda" if torch.cuda.is_available() else "cpu")
@@ -235,7 +235,7 @@ def train_with_split(
     batch_size=64,
     lr=3e-4,
     device=None,
-    mid_checkpoint_base: Optional[str | Path] = None,
+    mid_checkpoint_base: Optional[str] = None,
     mid_checkpoint_r: Optional[int] = None,
     mid_checkpoint_train_config: Optional[dict] = None,
     n_mid_checkpoints: int = 5,
