@@ -446,10 +446,14 @@ def _add_bit_to_seq(seq, next_bit):
     return seq
 
 
-def evaluate_model_with_sat(model, r=11, max_steps=None, device=None):
+def evaluate_model_with_sat(
+    model, r=11, max_steps=None, device=None, verbose=True
+):
     """
     Load a trained model, iteratively predict next bits, check each choice with the SAT solver,
     and return final metrics (mirroring the notebook cell).
+
+    If ``verbose`` is True, print per-step "ONLY ONE CHOICE WORKS" diagnostics (original notebook behavior).
     """
     device = device or ("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -492,12 +496,15 @@ def evaluate_model_with_sat(model, r=11, max_steps=None, device=None):
         sat_alt, core_alt = verify_assignment(alt_seq, varmap, cnf)
 
         if core or core_alt:
-            print(i, "ONLY ONE CHOICE WORKS")
+            if verbose:
+                print(i, "ONLY ONE CHOICE WORKS")
+                if core:
+                    print("WRONG")
+                else:
+                    print("RIGHT")
             if core:
-                print("WRONG")
                 count_wrong += 1
             else:
-                print("RIGHT")
                 count_right += 1
 
     return {
