@@ -87,6 +87,30 @@ def collate_pad(batch):
     return X, Y, M
 
 
+def _print_label_ratio(name: str, n0: int, n1: int) -> None:
+    n = n0 + n1
+    if n == 0:
+        print(f"[labels:{name}] empty")
+        return
+    print(
+        f"[labels:{name}] n={n}  "
+        f"class_0={n0} ({n0 / n:.4f})  class_1={n1} ({n1 / n:.4f})"
+    )
+
+
+def _label_counts_from_samples(samples: List[Sample]) -> Tuple[int, int]:
+    n1 = sum(1 for _, lab in samples if lab > 0)
+    n0 = len(samples) - n1
+    return n0, n1
+
+
+def _label_counts_from_dataset(ds) -> Tuple[int, int]:
+    n = len(ds)
+    n1 = sum(1 for i in range(n) if ds[i][1] == 1)
+    n0 = n - n1
+    return n0, n1
+
+
 class PolicyOnlyTransformer(nn.Module):
     def __init__(
         self,
@@ -251,10 +275,18 @@ def train_with_split(
         g = torch.Generator().manual_seed(seed)
         train_ds, test_ds = random_split(full_ds, [n_train, n_test], generator=g)
         print(f"[split] train={n_train} test={n_test}")
+        t0, t1 = _label_counts_from_dataset(train_ds)
+        e0, e1 = _label_counts_from_dataset(test_ds)
+        _print_label_ratio("train", t0, t1)
+        _print_label_ratio("test", e0, e1)
     else:
         train_ds = PrefixNextBitPaddedDataset(samples)
         test_ds = PrefixNextBitPaddedDataset(test_samples)
         print(f"[explicit] train={len(train_ds)} test={len(test_ds)}")
+        t0, t1 = _label_counts_from_dataset(train_ds)
+        e0, e1 = _label_counts_from_dataset(test_ds)
+        _print_label_ratio("train", t0, t1)
+        _print_label_ratio("test", e0, e1)
 
     train_loader = DataLoader(
         train_ds,
@@ -453,7 +485,12 @@ def evaluate_model_with_sat(
     Load a trained model, iteratively predict next bits, check each choice with the SAT solver,
     and return final metrics (mirroring the notebook cell).
 
-    If ``verbose`` is True, print per-step "ONLY ONE CHOICE WORKS" diagnostics (original notebook behavior).
+    ``count_right`` / ``count_wrong`` are updated **every** step from whether the model's
+    predicted bit yields a SAT-extendable partial assignment (before any backtrack), including
+    steps where both bits would extend.
+
+    If ``verbose`` is True, print per-step "ONLY ONE CHOICE WORKS" diagnostics when at least
+    one branch is UNSAT (original notebook behavior).
     """
     device = device or ("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -484,28 +521,28 @@ def evaluate_model_with_sat(
 
         sat, core = verify_assignment(seq, varmap, cnf)
 
-        if core:
+        if sat:
+            count_right += 1
+        else:
+            count_wrong += 1
             if first_incorrect == -1:
                 first_incorrect = i + 4
+
+        if not sat:
             num_unsat += 1
-            sum_unsat += len(core)
+            sum_unsat += len(core) if core else 0
             seq = copy.deepcopy(prev_seq)
             seq = _add_bit_to_seq(seq, 1 - next_bit)
 
         alt_seq = _add_bit_to_seq(copy.deepcopy(prev_seq), 1 - next_bit)
-        sat_alt, core_alt = verify_assignment(alt_seq, varmap, cnf)
+        _, core_alt = verify_assignment(alt_seq, varmap, cnf)
 
-        if core or core_alt:
-            if verbose:
-                print(i, "ONLY ONE CHOICE WORKS")
-                if core:
-                    print("WRONG")
-                else:
-                    print("RIGHT")
+        if verbose and (core or core_alt):
+            print(i, "ONLY ONE CHOICE WORKS")
             if core:
-                count_wrong += 1
+                print("WRONG")
             else:
-                count_right += 1
+                print("RIGHT")
 
     return {
         "count_right": count_right,
@@ -527,6 +564,9 @@ def evaluate_random_policy_with_sat(train_dataset, r=11, max_steps=None):
     The random policy samples bits with probabilities equal to the label
     distribution in the training dataset (0/1 labels), analogous to
     evaluate_random_policy, but applied in the sequential SAT setting.
+
+    ``count_right`` / ``count_wrong`` count every step from whether the sampled bit
+    is SAT-extendable (same convention as ``evaluate_model_with_sat``).
     """
     train_count_1 = sum(1 for i in range(len(train_dataset)) if train_dataset[i][1] == 1)
     train_1_ratio = train_count_1 / max(len(train_dataset), 1)
@@ -559,25 +599,28 @@ def evaluate_random_policy_with_sat(train_dataset, r=11, max_steps=None):
 
         sat, core = verify_assignment(seq, varmap, cnf)
 
-        if core:
+        if sat:
+            count_right += 1
+        else:
+            count_wrong += 1
             if first_incorrect == -1:
                 first_incorrect = i + 4
+
+        if not sat:
             num_unsat += 1
-            sum_unsat += len(core)
+            sum_unsat += len(core) if core else 0
             seq = copy.deepcopy(prev_seq)
             seq = _add_bit_to_seq(seq, 1 - next_bit)
 
         alt_seq = _add_bit_to_seq(copy.deepcopy(prev_seq), 1 - next_bit)
-        sat_alt, core_alt = verify_assignment(alt_seq, varmap, cnf)
+        _, core_alt = verify_assignment(alt_seq, varmap, cnf)
 
         if core or core_alt:
             print(i, "ONLY ONE CHOICE WORKS")
             if core:
                 print("WRONG")
-                count_wrong += 1
             else:
                 print("RIGHT")
-                count_right += 1
 
     return {
         "count_right": count_right,
@@ -631,6 +674,8 @@ def create_and_filter_dataset(
     dropped = len(samples) - len(filtered)
     if dropped:
         print(f"[data] dropped {dropped} samples with prefix length < {min_len}")
+    n0, n1 = _label_counts_from_samples(filtered)
+    _print_label_ratio("filtered (binary next_bit)", n0, n1)
     return filtered
     
 

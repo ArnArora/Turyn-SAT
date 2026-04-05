@@ -230,7 +230,8 @@ def run_rollout_evaluation(args: argparse.Namespace) -> Dict[str, object]:
     cnf, varmap, _, _ = generate_encoding(args.r)
     total_steps = 4 * (args.r - 1)
     random_prefix_steps = percentage_to_steps(total_steps, 25.0)
-    random_one_ratio = load_one_ratio_from_data(Path(args.random_policy_data))
+    random_policy_data = args.random_policy_data or f"data/data_{args.r}.pkl"
+    random_one_ratio = load_one_ratio_from_data(Path(random_policy_data))
 
     percentages = parse_percentages(args.percentages)
     runs_override = parse_runs_by_percentage(args.runs_by_percentage)
@@ -240,7 +241,7 @@ def run_rollout_evaluation(args: argparse.Namespace) -> Dict[str, object]:
         "r": args.r,
         "total_steps": total_steps,
         "random_prefix_steps": random_prefix_steps,
-        "random_policy_data": str(args.random_policy_data),
+        "random_policy_data": str(random_policy_data),
         "random_policy_one_ratio": random_one_ratio,
         "temperature": args.temperature,
         "strategy": args.strategy,
@@ -295,12 +296,6 @@ def build_parser() -> argparse.ArgumentParser:
         description="Evaluate SAT success of partial model rollouts by percentage."
     )
     parser.add_argument("model_path", type=str, help="Path to a model .pt checkpoint")
-    parser.add_argument(
-        "--random-policy-data",
-        type=str,
-        required=True,
-        help="Path to pickle file used to estimate random-policy label ratio",
-    )
     parser.add_argument("--r", type=int, default=9, help="Turyn sequence length")
     parser.add_argument(
         "--percentages",
@@ -350,6 +345,15 @@ def build_parser() -> argparse.ArgumentParser:
         type=str,
         default=None,
         help="Optional path to save full JSON results",
+    )
+    parser.add_argument(
+        "--random-policy-data",
+        type=str,
+        default=None,
+        help=(
+            "Path to pickle with (seq, label) samples used to estimate random-policy "
+            "P(next_bit=1). Defaults to data/data_<r>.pkl if omitted."
+        ),
     )
     return parser
 
