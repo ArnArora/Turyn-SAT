@@ -228,17 +228,15 @@ def evaluate_epoch(model, loader, device):
 
 def _epochs_for_midtraining_saves(total_epochs: int, n_saves: int = 5) -> List[int]:
     """
-    Epoch indices (1-based) at which to save checkpoints: n_saves saves starting from
-    the halfway epoch. If fewer than n_saves epochs remain from halfway to the end,
-    epochs are chosen evenly from halfway through the final epoch (may repeat).
+    Epoch indices (1-based) at which to save checkpoints: ``n_saves`` points evenly
+    spaced from the halfway epoch through the final epoch (inclusive). If halfway
+    equals the final epoch, that epoch is repeated for each save slot.
     """
     if total_epochs < 1 or n_saves < 1:
         return []
     first = max(1, (total_epochs + 1) // 2)
     last = total_epochs
     span = last - first + 1
-    if span >= n_saves:
-        return [first + i for i in range(n_saves)]
     if span <= 1:
         return [last] * n_saves
     out: List[int] = []
@@ -695,9 +693,9 @@ def run(
     Returns (model, train_ds, test_ds, hist, eval_results, random_policy_results).
 
     If ``save_data_path`` is set, writes the filtered training samples (pickle).
-    If ``save_model_path`` is set, writes five checkpoints from the halfway epoch
-    onward (names ``<stem>_mid_01_epXXX.pt``, …) during training, then the final
-    checkpoint at ``save_model_path`` after training.
+    If ``save_model_path`` is set, writes five checkpoints evenly spaced from the
+    halfway epoch through the final epoch (names ``<stem>_mid_01_epXXX.pt``, …)
+    during training, then the final checkpoint at ``save_model_path`` after training.
     """
     samples = create_and_filter_dataset(
         sequence_length,
