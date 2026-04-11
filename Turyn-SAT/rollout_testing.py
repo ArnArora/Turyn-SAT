@@ -1,13 +1,21 @@
 """
 Rollout evaluation for Turyn policy models at partial-prefix cutoffs.
 
-For each requested completion percentage, this script runs multiple model rollouts
+For each requested completion percentage, this script runs multiple rollouts
 starting from the seeded initial prefix [(1,), (1,), (1,), (1,)], then SAT-checks
 the generated partial sequence and reports successful/unsuccessful counts.
+
+Warmup prefixes are deterministic per trial index from ``rollout_prefix_seed``
+(see ``--rollout-prefix-seed``): the same trial sees the same warmup across
+script runs and when comparing model vs random policy, while different trials
+within one run differ. If ``warmup_steps`` is 0, trials may still coincide under
+``argmax``; use ``--strategy sample`` or nonzero warmup for diversity. CUDA can
+be nondeterministic for sampling; use ``--device cpu`` for stricter replay.
 """
 
 import argparse
 import copy
+import hashlib
 import json
 import math
 import pickle
@@ -23,6 +31,16 @@ from turyn_policy_transformer import (
     _add_bit_to_seq,
     predict_next_bit_from_prefix,
 )
+
+# One starter bit per row in the Turyn state [(1,), (1,), (1,), (1,)].
+INITIAL_PREFIX_FLAT_BITS = 4
+
+
+def stable_seed_int(*parts: object) -> int:
+    """Fixed 63-bit seed from arguments (stable across processes, unlike hash())."""
+    payload = repr(parts).encode("utf-8")
+    digest = hashlib.sha256(payload).digest()
+    return int.from_bytes(digest[:8], "big", signed=False) % (2**63)
 
 
 def parse_percentages(raw: str) -> List[float]:
@@ -66,15 +84,37 @@ def percentage_to_steps(total_steps: int, percentage: float) -> int:
     return max(0, min(total_steps, math.ceil(total_steps * (percentage / 100.0))))
 
 
-def build_random_prefix(random_steps: int) -> Sequence[tuple]:
+def build_random_prefix(random_steps: int, rng: random.Random) -> Sequence[tuple]:
     seq = [(1,), (1,), (1,), (1,)]
     for _ in range(random_steps):
-        seq = _add_bit_to_seq(copy.deepcopy(seq), random.randint(0, 1))
+        seq = _add_bit_to_seq(copy.deepcopy(seq), rng.randint(0, 1))
     return seq
 
 
-def sample_next_bit_from_ratio(one_ratio: float) -> int:
-    return random.choices([0, 1], weights=[1.0 - one_ratio, one_ratio], k=1)[0]
+def trial_warmup_prefix(
+    rollout_prefix_seed: int,
+    r: int,
+    total_steps: int,
+    random_prefix_steps: int,
+    percentage: float,
+    trial_index: int,
+    steps: int,
+) -> Sequence[tuple]:
+    warmup_steps = min(random_prefix_steps, steps)
+    wseed = stable_seed_int(
+        rollout_prefix_seed,
+        "rollout_warmup",
+        r,
+        total_steps,
+        random_prefix_steps,
+        percentage,
+        trial_index,
+    )
+    return build_random_prefix(warmup_steps, random.Random(wseed))
+
+
+def sample_next_bit_from_ratio(one_ratio: float, rng: random.Random) -> int:
+    return rng.choices([0, 1], weights=[1.0 - one_ratio, one_ratio], k=1)[0]
 
 
 def load_one_ratio_from_data(data_path: Path) -> float:
@@ -109,10 +149,13 @@ def rollout_until_steps(
     temperature: float,
     strategy: str,
     random_prefix_steps: int,
+    initial_warmup_seq: Optional[Sequence[tuple]] = None,
 ) -> Sequence[tuple]:
-    # Start each run from a randomized prefix while keeping the seeded initial bits.
     warmup_steps = min(random_prefix_steps, steps)
-    seq = build_random_prefix(warmup_steps)
+    if initial_warmup_seq is not None:
+        seq = copy.deepcopy(initial_warmup_seq)
+    else:
+        seq = build_random_prefix(warmup_steps, random.Random())
     for _ in range(steps - warmup_steps):
         result = predict_next_bit_from_prefix(
             model,
@@ -129,11 +172,19 @@ def random_policy_rollout_until_steps(
     steps: int,
     random_prefix_steps: int,
     one_ratio: float,
+    initial_warmup_seq: Optional[Sequence[tuple]] = None,
+    rng: Optional[random.Random] = None,
 ) -> Sequence[tuple]:
     warmup_steps = min(random_prefix_steps, steps)
-    seq = build_random_prefix(warmup_steps)
+    if initial_warmup_seq is not None:
+        seq = copy.deepcopy(initial_warmup_seq)
+    else:
+        seq = build_random_prefix(warmup_steps, rng or random.Random())
+    bit_rng = rng if rng is not None else random.Random()
     for _ in range(steps - warmup_steps):
-        seq = _add_bit_to_seq(copy.deepcopy(seq), sample_next_bit_from_ratio(one_ratio))
+        seq = _add_bit_to_seq(
+            copy.deepcopy(seq), sample_next_bit_from_ratio(one_ratio, bit_rng)
+        )
     return seq
 
 
@@ -154,10 +205,33 @@ def evaluate_percentage(
     temperature: float,
     strategy: str,
     random_prefix_steps: int,
+    rollout_prefix_seed: int,
+    r: int,
+    total_steps: int,
+    percentage: float,
 ) -> Dict[str, object]:
     successful = 0
     unsuccessful = 0
-    for _ in range(runs):
+    for k in range(runs):
+        trial_warmup = trial_warmup_prefix(
+            rollout_prefix_seed,
+            r,
+            total_steps,
+            random_prefix_steps,
+            percentage,
+            k,
+            steps,
+        )
+        tseed = stable_seed_int(
+            rollout_prefix_seed,
+            "torch_model_rollout",
+            r,
+            total_steps,
+            random_prefix_steps,
+            percentage,
+            k,
+        )
+        torch.manual_seed(tseed)
         partial_seq = rollout_until_steps(
             model=model,
             steps=steps,
@@ -165,6 +239,7 @@ def evaluate_percentage(
             temperature=temperature,
             strategy=strategy,
             random_prefix_steps=random_prefix_steps,
+            initial_warmup_seq=trial_warmup,
         )
         if sat_check_partial(partial_seq, cnf, varmap):
             successful += 1
@@ -188,14 +263,39 @@ def evaluate_random_policy_percentage(
     runs: int,
     random_prefix_steps: int,
     one_ratio: float,
+    rollout_prefix_seed: int,
+    r: int,
+    total_steps: int,
+    percentage: float,
 ) -> Dict[str, object]:
     successful = 0
     unsuccessful = 0
-    for _ in range(runs):
+    for k in range(runs):
+        trial_warmup = trial_warmup_prefix(
+            rollout_prefix_seed,
+            r,
+            total_steps,
+            random_prefix_steps,
+            percentage,
+            k,
+            steps,
+        )
+        ext_seed = stable_seed_int(
+            rollout_prefix_seed,
+            "randpol_rollout",
+            r,
+            total_steps,
+            random_prefix_steps,
+            percentage,
+            k,
+        )
+        ext_rng = random.Random(ext_seed)
         partial_seq = random_policy_rollout_until_steps(
             steps=steps,
             random_prefix_steps=random_prefix_steps,
             one_ratio=one_ratio,
+            initial_warmup_seq=trial_warmup,
+            rng=ext_rng,
         )
         if sat_check_partial(partial_seq, cnf, varmap):
             successful += 1
@@ -229,9 +329,20 @@ def run_rollout_evaluation(args: argparse.Namespace) -> Dict[str, object]:
     model = load_model(Path(args.model_path), device=device)
     cnf, varmap, _, _ = generate_encoding(args.r)
     total_steps = 4 * (args.r - 1)
-    random_prefix_steps = percentage_to_steps(total_steps, 25.0)
+    # 25% of full flat length (initial 4 bits + extension steps), minus the fixed initial bits.
+    total_flat_bits = INITIAL_PREFIX_FLAT_BITS + total_steps
+    random_prefix_steps = max(
+        0,
+        percentage_to_steps(total_flat_bits, 25.0) - INITIAL_PREFIX_FLAT_BITS,
+    )
     random_policy_data = args.random_policy_data or f"data/data_{args.r}.pkl"
     random_one_ratio = load_one_ratio_from_data(Path(random_policy_data))
+
+    rollout_prefix_seed = (
+        args.rollout_prefix_seed
+        if args.rollout_prefix_seed is not None
+        else (args.seed if args.seed is not None else 42)
+    )
 
     percentages = parse_percentages(args.percentages)
     runs_override = parse_runs_by_percentage(args.runs_by_percentage)
@@ -245,6 +356,7 @@ def run_rollout_evaluation(args: argparse.Namespace) -> Dict[str, object]:
         "random_policy_one_ratio": random_one_ratio,
         "temperature": args.temperature,
         "strategy": args.strategy,
+        "rollout_prefix_seed": rollout_prefix_seed,
         "model_percentages": [],
         "random_policy_percentages": [],
     }
@@ -263,6 +375,10 @@ def run_rollout_evaluation(args: argparse.Namespace) -> Dict[str, object]:
             temperature=args.temperature,
             strategy=args.strategy,
             random_prefix_steps=random_prefix_steps,
+            rollout_prefix_seed=rollout_prefix_seed,
+            r=args.r,
+            total_steps=total_steps,
+            percentage=percentage,
         )
         random_stats = evaluate_random_policy_percentage(
             cnf,
@@ -271,6 +387,10 @@ def run_rollout_evaluation(args: argparse.Namespace) -> Dict[str, object]:
             runs=runs,
             random_prefix_steps=random_prefix_steps,
             one_ratio=random_one_ratio,
+            rollout_prefix_seed=rollout_prefix_seed,
+            r=args.r,
+            total_steps=total_steps,
+            percentage=percentage,
         )
 
         results["model_percentages"].append(
@@ -332,7 +452,20 @@ def build_parser() -> argparse.ArgumentParser:
         "--seed",
         type=int,
         default=None,
-        help="Optional random seed",
+        help=(
+            "Optional global random/torch seed. Also used as rollout prefix seed when "
+            "--rollout-prefix-seed is omitted."
+        ),
+    )
+    parser.add_argument(
+        "--rollout-prefix-seed",
+        type=int,
+        default=None,
+        dest="rollout_prefix_seed",
+        help=(
+            "Seed for per-trial warmup and extension RNGs; default is --seed or 42. "
+            "Use the same value when comparing checkpoints."
+        ),
     )
     parser.add_argument(
         "--device",
@@ -363,11 +496,15 @@ def print_summary(results: Dict[str, object]) -> None:
     print(f"model_path: {results['model_path']}")
     print(f"r:          {results['r']}")
     print(f"steps:      {results['total_steps']}")
-    print(f"random25:   {results['random_prefix_steps']}")
+    print(
+        f"random25:   {results['random_prefix_steps']} "
+        f"(append steps; 25% of {INITIAL_PREFIX_FLAT_BITS + results['total_steps']} flat bits)"
+    )
     print(f"rand_data:  {results['random_policy_data']}")
     print(f"rand_p1:    {results['random_policy_one_ratio']:.4f}")
     print(f"strategy:   {results['strategy']}")
     print(f"temp:       {results['temperature']}")
+    print(f"prefix_sd:  {results['rollout_prefix_seed']}")
     print("")
     print("Model policy:")
     for row in results["model_percentages"]:
