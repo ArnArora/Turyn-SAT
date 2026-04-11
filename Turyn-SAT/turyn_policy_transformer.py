@@ -477,7 +477,13 @@ def _add_bit_to_seq(seq, next_bit):
 
 
 def evaluate_model_with_sat(
-    model, r=11, max_steps=None, device=None, verbose=True
+    model,
+    r=11,
+    max_steps=None,
+    device=None,
+    verbose=True,
+    temperature=1.0,
+    strategy="argmax",
 ):
     """
     Load a trained model, iteratively predict next bits, check each choice with the SAT solver,
@@ -489,6 +495,9 @@ def evaluate_model_with_sat(
 
     If ``verbose`` is True, print per-step "ONLY ONE CHOICE WORKS" diagnostics when at least
     one branch is UNSAT (original notebook behavior).
+
+    ``temperature`` and ``strategy`` are passed to ``predict_next_bit_from_prefix``; use
+    ``strategy="sample"`` for stochastic rollouts where temperature changes the bit distribution.
     """
     device = device or ("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -512,7 +521,9 @@ def evaluate_model_with_sat(
     steps = max_steps if max_steps is not None else 4 * (r - 1)
 
     for i in range(steps):
-        res = predict_next_bit_from_prefix(model, seq, device=device)
+        res = predict_next_bit_from_prefix(
+            model, seq, device=device, temperature=temperature, strategy=strategy
+        )
         next_bit = res["pred"]
         prev_seq = copy.deepcopy(seq)
         seq = _add_bit_to_seq(seq, next_bit)
@@ -555,19 +566,32 @@ def evaluate_model_with_sat(
     }
 
 
-def evaluate_random_policy_with_sat(train_dataset, r=11, max_steps=None):
+def evaluate_random_policy_with_sat(
+    train_dataset=None,
+    r=11,
+    max_steps=None,
+    one_ratio=None,
+    verbose=True,
+):
     """
     Sequential SAT-guided evaluation using a random policy.
 
-    The random policy samples bits with probabilities equal to the label
-    distribution in the training dataset (0/1 labels), analogous to
-    evaluate_random_policy, but applied in the sequential SAT setting.
+    The random policy samples bits with probabilities [1-p, p] for bits 0 and 1,
+    where p is the fraction of label-1 in ``train_dataset``, or ``one_ratio``
+    if provided (then ``train_dataset`` may be omitted).
 
     ``count_right`` / ``count_wrong`` count every step from whether the sampled bit
     is SAT-extendable (same convention as ``evaluate_model_with_sat``).
     """
-    train_count_1 = sum(1 for i in range(len(train_dataset)) if train_dataset[i][1] == 1)
-    train_1_ratio = train_count_1 / max(len(train_dataset), 1)
+    if one_ratio is not None:
+        train_1_ratio = float(one_ratio)
+    else:
+        if train_dataset is None:
+            raise ValueError("train_dataset is required when one_ratio is not set")
+        train_count_1 = sum(
+            1 for i in range(len(train_dataset)) if train_dataset[i][1] == 1
+        )
+        train_1_ratio = train_count_1 / max(len(train_dataset), 1)
 
     seq = [(1,), (1,), (1,), (1,)]
 
@@ -613,7 +637,7 @@ def evaluate_random_policy_with_sat(train_dataset, r=11, max_steps=None):
         alt_seq = _add_bit_to_seq(copy.deepcopy(prev_seq), 1 - next_bit)
         _, core_alt = verify_assignment(alt_seq, varmap, cnf)
 
-        if core or core_alt:
+        if verbose and (core or core_alt):
             print(i, "ONLY ONE CHOICE WORKS")
             if core:
                 print("WRONG")
